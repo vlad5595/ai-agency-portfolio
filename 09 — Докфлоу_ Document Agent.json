@@ -1,0 +1,1044 @@
+{
+  "name": "09 — Докфлоу: Document Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "33fdc136-cf44-4a52-844c-97f75a86b36a",
+      "name": "Telegram Trigger",
+      "webhookId": "718ca0e6-2b14-4188-a1da-d86973626032",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/getFile",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "file_id",
+              "value": "={{ $json.message.document.file_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        176,
+        0
+      ],
+      "id": "9376bf9c-e208-4391-b8a7-76bb2bbd935b",
+      "name": "Get File Path"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/file/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/{{ $json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        384,
+        0
+      ],
+      "id": "e98d949c-5e37-4fb4-9410-d086d0b0f979",
+      "name": "Download File"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        592,
+        0
+      ],
+      "id": "f96c1a00-b8e3-48c8-8723-1b7338d58bad",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.first().json.text || '';\n\n// Обрезаем текст до ~3000 символов — для классификации больше не нужно\nconst truncated = text.substring(0, 3000);\n\nconst requestBody = JSON.stringify({\n  model: \"deepseek-chat\",\n  messages: [\n    {\n      role: \"system\",\n      content: `Ты — классификатор документов. Тебе дают текст, извлечённый из PDF.\nОпредели тип документа. Возможные типы:\n- \"invoice\" — счёт на оплату, счёт-фактура\n- \"waybill\" — товарная накладная, транспортная накладная, акт приёма-передачи\n- \"report\" — отчёт (о продажах, маркетинговый, финансовый, аналитический)\n\nВерни ТОЛЬКО JSON: {\"doc_type\": \"invoice\"|\"waybill\"|\"report\", \"confidence\": \"high\"|\"medium\"|\"low\"}\nНикакого текста кроме JSON.`\n    },\n    {\n      role: \"user\",\n      content: truncated\n    }\n  ],\n  response_format: { type: \"json_object\" },\n  temperature: 0\n});\n\nreturn [{ json: { request_body: requestBody, original_text: text } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ],
+      "id": "7ab8dca8-33a4-4a1a-91fa-ebe91f5ae834",
+      "name": "Classify Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        992,
+        0
+      ],
+      "id": "e69bcd3e-2d40-410b-87c8-d78afe697e21",
+      "name": "Classify Document",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mP5T7DHPI4HKzCJm",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst content = response.choices[0].message.content;\nconst parsed = JSON.parse(content);\n\n// Прокидываем original_text из Classify Prompt\nconst originalText = $('Classify Prompt').first().json.original_text;\n\nreturn [{\n  json: {\n    doc_type: parsed.doc_type,\n    confidence: parsed.confidence,\n    original_text: originalText\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "7b5fc53b-9d2e-45ac-b9b0-b4de73a25e8f",
+      "name": "Parse Classification"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.doc_type }}",
+                    "rightValue": "invoice",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "6a1f15dc-8209-48fd-b747-4d643f139101"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d0456978-6281-479d-abe1-e5f89d97f4de",
+                    "leftValue": "={{ $json.doc_type }}",
+                    "rightValue": "waybill",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "3cf48e7b-9e47-4ddc-9197-962a91a9cd87",
+                    "leftValue": "={{ $json.doc_type }}",
+                    "rightValue": "report",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1392,
+        0
+      ],
+      "id": "5d430b70-d871-4aa3-b445-a660d09d06ac",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.first().json.original_text;\n\nconst requestBody = JSON.stringify({\n  model: \"deepseek-chat\",\n  messages: [\n    {\n      role: \"system\",\n      content: `Ты извлекаешь данные из счетов на оплату. Из текста документа извлеки:\n- contractor: наименование поставщика (кто выставил счёт)\n- inn: ИНН поставщика\n- invoice_number: номер счёта\n- date: дата счёта в формате YYYY-MM-DD\n- amount: сумма к оплате с НДС (число, без \"руб.\")\n- vat: сумма НДС (число, без \"руб.\")\n- purpose: назначение платежа (краткое описание)\n\nВерни ТОЛЬКО JSON с этими полями. Числа — без пробелов и запятых, используй точку для копеек.\nПример: {\"contractor\":\"ООО Ромашка\",\"inn\":\"7712345678\",\"invoice_number\":\"42\",\"date\":\"2026-01-15\",\"amount\":150000.00,\"vat\":25000.00,\"purpose\":\"Канцтовары по договору №3\"}`\n    },\n    {\n      role: \"user\",\n      content: text\n    }\n  ],\n  response_format: { type: \"json_object\" },\n  temperature: 0\n});\n\nreturn [{ json: { request_body: requestBody } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        -176
+      ],
+      "id": "4fc8c420-6a90-494a-beff-b58b18e411aa",
+      "name": "Invoice Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1760,
+        -176
+      ],
+      "id": "919642cf-427b-4e7c-a920-de22d87e2eb6",
+      "name": "Extract Invoice",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mP5T7DHPI4HKzCJm",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst content = response.choices[0].message.content;\nconst data = JSON.parse(content);\n\nconst now = new Date();\nconst pad = (n) => String(n).padStart(2, '0');\nconst dateStr = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}`;\nconst seq = pad(Math.floor(Math.random() * 999) + 1, 3).toString().padStart(3, '0');\nconst docId = `DF-${dateStr}-${seq}`;\n\nconst chatId = $('Telegram Trigger').first().json.message.chat.id;\n\nreturn [{\n  json: {\n    doc_id: docId,\n    contractor: data.contractor || '',\n    inn: data.inn || '',\n    invoice_number: data.invoice_number || '',\n    date: data.date || '',\n    amount: data.amount || 0,\n    vat: data.vat || 0,\n    purpose: data.purpose || '',\n    created_at: now.toISOString(),\n    chat_id: chatId,\n    summary: `📄 Счёт на оплату\\n\\n` +\n      `Поставщик: ${data.contractor}\\n` +\n      `ИНН: ${data.inn}\\n` +\n      `Счёт №${data.invoice_number} от ${data.date}\\n` +\n      `Сумма: ${data.amount} руб. (НДС: ${data.vat} руб.)\\n` +\n      `Назначение: ${data.purpose}\\n\\n` +\n      `✅ Записано в таблицу | ID: ${docId}`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1952,
+        -176
+      ],
+      "id": "8eb84641-16c1-461a-9246-62e49b109e05",
+      "name": "Parse Invoice"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "14L1I4o7ZE_9hHtB4hbQXE103WEtti--q44gORK5FeOE",
+          "mode": "list",
+          "cachedResultName": "Докфлоу — Документы",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14L1I4o7ZE_9hHtB4hbQXE103WEtti--q44gORK5FeOE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Invoices",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14L1I4o7ZE_9hHtB4hbQXE103WEtti--q44gORK5FeOE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "doc_id",
+              "displayName": "doc_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "contractor",
+              "displayName": "contractor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "inn",
+              "displayName": "inn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "invoice_number",
+              "displayName": "invoice_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "vat",
+              "displayName": "vat",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose",
+              "displayName": "purpose",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2128,
+        -176
+      ],
+      "id": "c7d894d2-8a0a-4fa0-a83f-10998fd15b50",
+      "name": "Save Invoice",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Invoice').first().json.chat_id }}",
+        "text": "={{ $('Parse Invoice').first().json.summary }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2320,
+        -176
+      ],
+      "id": "f5366018-3cc6-47f2-b94a-4809f5792310",
+      "name": "Send a text message",
+      "webhookId": "243427d5-dc85-4546-bbee-90c5bbad83d7",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.first().json.original_text;\n\nconst requestBody = JSON.stringify({\n  model: \"deepseek-chat\",\n  messages: [\n    {\n      role: \"system\",\n      content: `Ты извлекаешь данные из товарных накладных. Из текста документа извлеки:\n- supplier: наименование поставщика\n- recipient: наименование получателя\n- date: дата накладной в формате YYYY-MM-DD\n- items: массив позиций, каждая позиция — объект {name, quantity, unit, price, sum}\n- total_amount: итоговая сумма с НДС (число)\n\nВерни ТОЛЬКО JSON. Числа — без пробелов, точка для копеек.\nПример: {\"supplier\":\"ООО Роза\",\"recipient\":\"ИП Иванов\",\"date\":\"2026-03-10\",\"items\":[{\"name\":\"Мука 50кг\",\"quantity\":5,\"unit\":\"мешок\",\"price\":2000.00,\"sum\":10000.00}],\"total_amount\":11000.00}`\n    },\n    {\n      role: \"user\",\n      content: text\n    }\n  ],\n  response_format: { type: \"json_object\" },\n  temperature: 0\n});\n\nreturn [{ json: { request_body: requestBody } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        16
+      ],
+      "id": "0708f8ad-5aa3-4139-8231-0a5f0f5102cc",
+      "name": "Waybill Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1760,
+        16
+      ],
+      "id": "1d27af3d-a836-4e15-974d-3c86d36dd204",
+      "name": "Extract Waybill",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mP5T7DHPI4HKzCJm",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst content = response.choices[0].message.content;\nconst data = JSON.parse(content);\n\nconst now = new Date();\nconst pad = (n) => String(n).padStart(2, '0');\nconst dateStr = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}`;\nconst seq = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');\nconst docId = `DF-${dateStr}-${seq}`;\n\nconst chatId = $('Telegram Trigger').first().json.message.chat.id;\n\nconst itemsList = (data.items || [])\n  .map((it, i) => `  ${i+1}. ${it.name} — ${it.quantity} ${it.unit} × ${it.price} = ${it.sum}`)\n  .join('\\n');\n\nreturn [{\n  json: {\n    doc_id: docId,\n    supplier: data.supplier || '',\n    recipient: data.recipient || '',\n    date: data.date || '',\n    items_json: JSON.stringify(data.items || []),\n    items_count: (data.items || []).length,\n    total_amount: data.total_amount || 0,\n    created_at: now.toISOString(),\n    chat_id: chatId,\n    summary: `📦 Товарная накладная\\n\\n` +\n      `Поставщик: ${data.supplier}\\n` +\n      `Получатель: ${data.recipient}\\n` +\n      `Дата: ${data.date}\\n` +\n      `Позиций: ${(data.items || []).length}\\n\\n` +\n      itemsList + `\\n\\n` +\n      `Итого: ${data.total_amount} руб.\\n\\n` +\n      `✅ Записано в таблицу | ID: ${docId}`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1952,
+        16
+      ],
+      "id": "7ff91814-bec4-4cc6-ad93-e45c5b8150f4",
+      "name": "Parse Waybill"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "14L1I4o7ZE_9hHtB4hbQXE103WEtti--q44gORK5FeOE",
+          "mode": "list",
+          "cachedResultName": "Докфлоу — Документы",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14L1I4o7ZE_9hHtB4hbQXE103WEtti--q44gORK5FeOE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2099366085,
+          "mode": "list",
+          "cachedResultName": "Waybills",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14L1I4o7ZE_9hHtB4hbQXE103WEtti--q44gORK5FeOE/edit#gid=2099366085"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "doc_id",
+              "displayName": "doc_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "supplier",
+              "displayName": "supplier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recipient",
+              "displayName": "recipient",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "items_json",
+              "displayName": "items_json",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "items_count",
+              "displayName": "items_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "total_amount",
+              "displayName": "total_amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2144,
+        16
+      ],
+      "id": "be027f57-0958-4d03-a9bc-420ebda98680",
+      "name": "Save Waybill",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Waybill').first().json.chat_id }}",
+        "text": "={{ $('Parse Waybill').first().json.summary }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2320,
+        16
+      ],
+      "id": "1f0002e6-04ea-417c-90a6-eacd62d57229",
+      "name": "Reply Waybill",
+      "webhookId": "4e3c65b4-b935-420f-852d-573415096779",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.first().json.original_text;\n\nconst requestBody = JSON.stringify({\n  model: \"deepseek-chat\",\n  messages: [\n    {\n      role: \"system\",\n      content: `Ты извлекаешь данные из бизнес-отчётов. Из текста документа извлеки:\n- report_type: тип отчёта (например: \"продажи\", \"маркетинг\", \"финансы\", \"операционный\")\n- period: период отчёта (например: \"июнь 2026\", \"Q2 2026\")\n- key_metrics: массив ключевых метрик, каждая — объект {name, value, change} где change — динамика если указана\n- summary: краткая сводка в 2-3 предложения — главные выводы\n- anomalies: аномалии, проблемы или важные замечания из отчёта (строка, если нет — пустая строка)\n\nВерни ТОЛЬКО JSON.\nПример: {\"report_type\":\"продажи\",\"period\":\"май 2026\",\"key_metrics\":[{\"name\":\"Выручка\",\"value\":\"3 200 000 руб.\",\"change\":\"+8%\"}],\"summary\":\"Выручка выросла на 8%. Основной драйвер — канал контекстной рекламы.\",\"anomalies\":\"Возвраты выросли на 20%\"}`\n    },\n    {\n      role: \"user\",\n      content: text\n    }\n  ],\n  response_format: { type: \"json_object\" },\n  temperature: 0\n});\n\nreturn [{ json: { request_body: requestBody } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        208
+      ],
+      "id": "1429b8f7-809a-48a7-be42-15c241f5f95c",
+      "name": "Report Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1760,
+        208
+      ],
+      "id": "86ab83fd-1a43-4935-8719-8adbcb5dd3e2",
+      "name": "Extract Report",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mP5T7DHPI4HKzCJm",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst content = response.choices[0].message.content;\nconst data = JSON.parse(content);\n\nconst now = new Date();\nconst pad = (n) => String(n).padStart(2, '0');\nconst dateStr = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}`;\nconst seq = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');\nconst docId = `DF-${dateStr}-${seq}`;\n\nconst chatId = $('Telegram Trigger').first().json.message.chat.id;\n\nconst metricsList = (data.key_metrics || [])\n  .map(m => `  • ${m.name}: ${m.value}${m.change ? ' (' + m.change + ')' : ''}`)\n  .join('\\n');\n\nreturn [{\n  json: {\n    doc_id: docId,\n    report_type: data.report_type || '',\n    period: data.period || '',\n    key_metrics_json: JSON.stringify(data.key_metrics || []),\n    summary: data.summary || '',\n    anomalies: data.anomalies || '',\n    created_at: now.toISOString(),\n    chat_id: chatId,\n    telegram_summary: `📊 Отчёт: ${data.report_type}\\n` +\n      `Период: ${data.period}\\n\\n` +\n      `Ключевые метрики:\\n${metricsList}\\n\\n` +\n      `Сводка: ${data.summary}\\n` +\n      (data.anomalies ? `\\n⚠️ ${data.anomalies}\\n` : '') +\n      `\\n✅ Записано в таблицу | ID: ${docId}`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1952,
+        208
+      ],
+      "id": "8855ee8b-5e0a-4eac-abf0-971402e54d2f",
+      "name": "Parse Report"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "14L1I4o7ZE_9hHtB4hbQXE103WEtti--q44gORK5FeOE",
+          "mode": "list",
+          "cachedResultName": "Докфлоу — Документы",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14L1I4o7ZE_9hHtB4hbQXE103WEtti--q44gORK5FeOE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2032457057,
+          "mode": "list",
+          "cachedResultName": "Reports",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14L1I4o7ZE_9hHtB4hbQXE103WEtti--q44gORK5FeOE/edit#gid=2032457057"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "doc_id",
+              "displayName": "doc_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "report_type",
+              "displayName": "report_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "period",
+              "displayName": "period",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "key_metrics_json",
+              "displayName": "key_metrics_json",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "anomalies",
+              "displayName": "anomalies",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2144,
+        208
+      ],
+      "id": "9b896b09-2356-465b-8435-661d8a61db56",
+      "name": "Save Report",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Report').first().json.chat_id }}",
+        "text": "={{ $('Parse Report').first().json.telegram_summary }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2320,
+        208
+      ],
+      "id": "f65641ee-4c30-4edc-95e5-30e1d9fa5a62",
+      "name": "Reply Report",
+      "webhookId": "51b0a0f2-66d5-4f76-9ec8-461e22439ed2",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get File Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get File Path": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Classify Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Prompt": {
+      "main": [
+        [
+          {
+            "node": "Classify Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Document": {
+      "main": [
+        [
+          {
+            "node": "Parse Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Classification": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Invoice Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Waybill Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Report Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Invoice Prompt": {
+      "main": [
+        [
+          {
+            "node": "Extract Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Invoice": {
+      "main": [
+        [
+          {
+            "node": "Parse Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Invoice": {
+      "main": [
+        [
+          {
+            "node": "Save Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Invoice": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Waybill Prompt": {
+      "main": [
+        [
+          {
+            "node": "Extract Waybill",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Waybill": {
+      "main": [
+        [
+          {
+            "node": "Parse Waybill",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Waybill": {
+      "main": [
+        [
+          {
+            "node": "Save Waybill",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Waybill": {
+      "main": [
+        [
+          {
+            "node": "Reply Waybill",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report Prompt": {
+      "main": [
+        [
+          {
+            "node": "Extract Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Report": {
+      "main": [
+        [
+          {
+            "node": "Parse Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Report": {
+      "main": [
+        [
+          {
+            "node": "Save Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Report": {
+      "main": [
+        [
+          {
+            "node": "Reply Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "4a0304d6-5e99-48f9-ba7a-243a6444bc03",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7336350515be8065f9e6f16c44aebd7540c1ed731f4d604c5a4d9b68a55dfd93"
+  },
+  "nodeGroups": [],
+  "id": "HekTEvtQo7uHeJVQ",
+  "tags": []
+}

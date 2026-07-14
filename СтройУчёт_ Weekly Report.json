@@ -1,0 +1,265 @@
+{
+  "name": "СтройУчёт: Weekly Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "f6d903fd-0ac7-4405-865d-3658827c0d07",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM",
+          "mode": "list",
+          "cachedResultName": "СтройУчёт — Расходы",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Expenses",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        0
+      ],
+      "id": "794270f6-e3ae-4f76-ba2c-cb77fe6e59e4",
+      "name": "Get All Expenses",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM",
+          "mode": "list",
+          "cachedResultName": "СтройУчёт — Расходы",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 10642848,
+          "mode": "list",
+          "cachedResultName": "Objects",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit#gid=10642848"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        416,
+        0
+      ],
+      "id": "47593ca4-0a4e-424e-a501-b36d71526814",
+      "name": "Get All Objects",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const allExpenses = $('Get All Expenses').all().map(i => i.json);\nconst objects = $('Get All Objects').all().map(i => i.json);\n\n// Только confirmed\nconst confirmed = allExpenses.filter(e => e.status === 'confirmed');\n\n// За последние 7 дней\nconst now = new Date();\nconst weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\nconst thisWeek = confirmed.filter(e => {\n  const d = new Date(e.date);\n  return d >= weekAgo && d <= now;\n});\n\n// Сводка по категориям\nconst byCat = {};\nthisWeek.forEach(e => {\n  const cat = e.category || 'other';\n  byCat[cat] = (byCat[cat] || 0) + Number(e.amount || 0);\n});\n\n// Сводка по объектам\nconst byObj = {};\nthisWeek.forEach(e => {\n  const obj = e.object_name || 'Не указан';\n  byObj[obj] = (byObj[obj] || 0) + Number(e.amount || 0);\n});\n\n// Бюджеты объектов\nconst budgets = {};\nconst totalByObj = {};\nobjects.forEach(o => {\n  budgets[o.object_id] = { name: o.object_name, budget: Number(o.budget || 0) };\n});\nconfirmed.forEach(e => {\n  if (e.object_id) {\n    totalByObj[e.object_id] = (totalByObj[e.object_id] || 0) + Number(e.amount || 0);\n  }\n});\n\nconst budgetStatus = Object.keys(budgets).map(id => ({\n  object: budgets[id].name,\n  budget: budgets[id].budget,\n  spent: totalByObj[id] || 0,\n  pct: budgets[id].budget > 0 ? Math.round((totalByObj[id] || 0) / budgets[id].budget * 100) : 0\n}));\n\n// Данные для промпта\nconst data = {\n  period: `${weekAgo.toISOString().slice(0,10)} — ${now.toISOString().slice(0,10)}`,\n  total_this_week: thisWeek.reduce((s, e) => s + Number(e.amount || 0), 0),\n  expenses_count: thisWeek.length,\n  by_category: byCat,\n  by_object: byObj,\n  budget_status: budgetStatus,\n  all_expenses_this_week: thisWeek.map(e => ({\n    date: e.date,\n    amount: e.amount,\n    category: e.category,\n    object: e.object_name,\n    description: e.description,\n    who: e.submitted_by\n  }))\n};\n\nconst prompt = `Ты — финансовый аналитик строительной бригады.\nВот данные за неделю. Напиши краткий аналитический отчёт на русском языке для руководителя бригады.\n\nДанные:\n${JSON.stringify(data, null, 2)}\n\nСтруктура отчёта:\n1. Итого за неделю (сумма, количество чеков)\n2. Расходы по категориям (топ категории, доли)\n3. Расходы по объектам\n4. Статус бюджетов (какой процент израсходован по каждому объекту)\n5. Аномалии или наблюдения (необычно крупные траты, рост расходов, объекты близкие к лимиту)\n6. Рекомендации (1-2 коротких совета)\n\nФормат: текст для Telegram, используй эмодзи для структуры. Не используй markdown-форматирование (*жирный* и т.п.), только простой текст с эмодзи. Максимум 2000 символов.`;\n\nconst request_body = JSON.stringify({\n  model: \"deepseek-v4-flash\",\n  messages: [\n    { role: \"user\", content: prompt }\n  ],\n  temperature: 0.3,\n  max_tokens: 2000\n});\n\nreturn [{ json: { request_body } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "e6bd07bf-5d28-440a-abac-6c747ba24572",
+      "name": "Build Analytics Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sk-4c08d8ac92714bf9a6212cbc60ae0d14"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        832,
+        0
+      ],
+      "id": "f0471c99-e0ea-4cfc-a60a-4d4e90e1bc2d",
+      "name": "DeepSeek Analysis"
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst report = response.choices[0].message.content;\n\nconst body = JSON.stringify({\n  chat_id: '448587092',\n  text: report\n});\n\nreturn [{ json: { body } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "be7a0a08-0030-4c22-b1da-e5b7c0adb3f9",
+      "name": "Build Report"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1248,
+        0
+      ],
+      "id": "cb40190b-9cb6-4d91-af4a-3b78dc4976c7",
+      "name": "Send Report"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get All Expenses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Expenses": {
+      "main": [
+        [
+          {
+            "node": "Get All Objects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Objects": {
+      "main": [
+        [
+          {
+            "node": "Build Analytics Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Analytics Prompt": {
+      "main": [
+        [
+          {
+            "node": "DeepSeek Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Analysis": {
+      "main": [
+        [
+          {
+            "node": "Build Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Report": {
+      "main": [
+        [
+          {
+            "node": "Send Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "07c3caeb-f680-471b-bd95-db196b313239",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7336350515be8065f9e6f16c44aebd7540c1ed731f4d604c5a4d9b68a55dfd93"
+  },
+  "nodeGroups": [],
+  "id": "ZBidxidy0axU5SbX",
+  "tags": []
+}

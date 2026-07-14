@@ -1,0 +1,5517 @@
+{
+  "name": "13 — МедСорт: Pre-Screening Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "callback_query",
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d8a148db-f32e-4221-9a12-364ff199a4e4",
+      "name": "Telegram Trigger",
+      "webhookId": "d9b7b52a-7442-4f87-bdf0-29a4909794f0",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const update = $json;\n\n// 1. Callback query (кнопки врача)\nif (update.callback_query?.data) {\n  return {\n    input_type: 'callback',\n    callback_data: update.callback_query.data,\n    callback_id: update.callback_query.id,\n    message_id: update.callback_query.message?.message_id || '',\n    chat_id: String(update.callback_query.from?.id || ''),\n    user_name: [\n      update.callback_query.from?.first_name || '',\n      update.callback_query.from?.last_name || ''\n    ].filter(Boolean).join(' '),\n    username: update.callback_query.from?.username || ''\n  };\n}\n\nconst msg = update.message;\nif (!msg) {\n  return { input_type: 'fallback', chat_id: '', user_name: '', username: '' };\n}\n\nconst chat_id = String(msg.from?.id || msg.chat?.id || '');\nconst user_name = [\n  msg.from?.first_name || '',\n  msg.from?.last_name || ''\n].filter(Boolean).join(' ');\nconst username = msg.from?.username || '';\n\n// 2. Voice\nif (msg.voice) {\n  return {\n    input_type: 'voice',\n    chat_id, user_name, username,\n    file_id: msg.voice.file_id,\n    duration: msg.voice.duration\n  };\n}\n\n// 3. Photo\nif (msg.photo && msg.photo.length > 0) {\n  const bestPhoto = msg.photo[msg.photo.length - 1];\n  return {\n    input_type: 'photo',\n    chat_id, user_name, username,\n    file_id: bestPhoto.file_id,\n    caption: msg.caption || ''\n  };\n}\n\n// 4. Text\nif (msg.text) {\n  return {\n    input_type: 'text',\n    chat_id, user_name, username,\n    text: msg.text\n  };\n}\n\n// 5. Fallback\nreturn { input_type: 'fallback', chat_id, user_name, username };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "d79174b0-8fe0-4cec-9c48-fd794eaade1d",
+      "name": "Check Input Type"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.input_type }}",
+                    "rightValue": "callback",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "0a22c2cb-4561-4b30-b41f-372206ec13ee"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "f47a0b64-75ad-4b05-a316-daeca5b58719",
+                    "leftValue": "={{ $json.input_type }}",
+                    "rightValue": "voice",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e384cf78-c5a5-4bec-962a-6f29af3e6014",
+                    "leftValue": "={{ $json.input_type }}",
+                    "rightValue": "photo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "photo"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c59aaf82-e7fc-4e36-9402-8487ad516b7f",
+                    "leftValue": "={{ $json.input_type }}",
+                    "rightValue": "text",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "00cb6163-dae9-4e5c-9ca7-cce752feadb4",
+      "name": "Route Type"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Check Input Type').first().json.chat_id }}",
+        "text": "Пожалуйста, отправьте текстовое или голосовое сообщение, либо фото.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        624,
+        288
+      ],
+      "id": "9fba130b-42a7-4d43-a51d-189e3cd25106",
+      "name": "Send Fallback",
+      "webhookId": "94d3a31a-3655-4b60-9c2b-0159cc926280",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 605204595,
+          "mode": "list",
+          "cachedResultName": "Doctors",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=605204595"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "telegram_id",
+              "lookupValue": "={{ $('Check Input Type').first().json.chat_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        112
+      ],
+      "id": "31bf01dd-f96f-471d-b641-6a8f4f59eeb2",
+      "name": "Check Doctor Pending",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const checkInput = $('Check Input Type').first().json;\n\n// Определяем источник текста: voice, photo или text\nlet text = '';\nlet chat_id = checkInput.chat_id || '';\nlet user_name = checkInput.user_name || '';\nlet username = checkInput.username || '';\nlet voice_used = 'FALSE';\nlet photo_analysis = '';\n\n// Пробуем Voice\ntry {\n  const voice = $('Set Unified Format Voice').first().json;\n  if (voice && voice.text) {\n    text = voice.text;\n    chat_id = voice.chat_id;\n    user_name = voice.user_name;\n    username = voice.username;\n    voice_used = voice.voice_used || 'TRUE';\n  }\n} catch(e) {}\n\n// Пробуем Photo\ntry {\n  const photo = $('Set Unified Format Photo').first().json;\n  if (photo && photo.text) {\n    text = photo.text;\n    chat_id = photo.chat_id;\n    user_name = photo.user_name;\n    username = photo.username;\n    photo_analysis = photo.photo_analysis || '';\n  }\n} catch(e) {}\n\n// Если ни voice, ни photo — берём из Check Input Type (обычный текст)\nif (!text) {\n  text = checkInput.text || '';\n}\n\n// Проверяем doctor pending\nconst doctorRows = $('Check Doctor Pending').all();\nconst doctor = doctorRows.find(\n  r => r.json.telegram_id && r.json.doctor_pending_inquiry_id\n);\n\nif (doctor && text.trim().toLowerCase() !== '/start') {\n  return {\n    route: 'doctor_question',\n    doctor_id: doctor.json.doctor_id,\n    doctor_name: doctor.json.name,\n    pending_inquiry_id: doctor.json.doctor_pending_inquiry_id,\n    question_text: text,\n    chat_id: chat_id,\n    user_name: user_name,\n    username: username\n  };\n}\n\nconst isStart = text.trim().toLowerCase() === '/start';\n\nreturn {\n  route: isStart ? 'start' : 'message',\n  text: text,\n  chat_id: chat_id,\n  user_name: user_name,\n  username: username,\n  voice_used: voice_used,\n  photo_analysis: photo_analysis\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        112
+      ],
+      "id": "38f5af7a-9448-4873-a163-afe70332d337",
+      "name": "Route: Doctor or Patient"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "doctor_question",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "7ac8325e-7903-49cb-adf6-0dcb148f88ca"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "5e306147-e060-4efb-9893-3294b3ccffcd",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "start",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b7057cd8-b5ed-45ca-b170-1d79fee79f27",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "message",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        112
+      ],
+      "id": "f7b7d635-df5b-43f3-809f-b6c15b6b77ec",
+      "name": "Switch Route"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1931181431,
+          "mode": "list",
+          "cachedResultName": "Inquiries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1931181431"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "client_telegram_id",
+              "lookupValue": "={{ $json.chat_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1248,
+        112
+      ],
+      "id": "8209db55-27c5-4687-b7ad-06dcec955a2d",
+      "name": "Lookup Returning Patient",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Route: Doctor or Patient').first().json;\nconst inquiryRows = $('Lookup Returning Patient').all();\nconst validInquiries = inquiryRows.filter(\n  r => r.json.inquiry_id && r.json.inquiry_id !== ''\n);\nconst isReturning = validInquiries.length > 0;\n\nconst now = new Date().toISOString();\nconst sessionId = 'SES-' + now.replace(/\\D/g, '').slice(0, 12);\n\nlet previousSummary = '';\nif (isReturning) {\n  previousSummary = validInquiries\n    .slice(-3)\n    .map(r => `${r.json.date}: ${r.json.direction} — ${r.json.summary}`)\n    .join('\\n');\n}\n\nreturn {\n  session_id: sessionId,\n  telegram_user_id: input.chat_id,\n  client_name: input.user_name,\n  client_username: input.username ? '@' + input.username : '',\n  language: '',\n  stage: 'awaiting_complaint',\n  collected_data: '{}',\n  awaiting_doctor_response: '',\n  doctor_question_for_patient: '',\n  created_at: now,\n  updated_at: now,\n  is_returning: isReturning,\n  previous_summary: previousSummary,\n  previous_inquiry_ids: validInquiries\n    .map(r => r.json.inquiry_id).join(', ')\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        112
+      ],
+      "id": "8ddd430a-0901-46db-8fec-55527fc7ea6f",
+      "name": "Build New Session"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1141015070,
+          "mode": "list",
+          "cachedResultName": "Sessions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1141015070"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $json.session_id }}",
+            "telegram_user_id": "={{ $json.telegram_user_id }}",
+            "client_name": "={{ $json.client_name }}",
+            "client_username": "={{ $json.client_username }}",
+            "stage": "={{ $json.stage }}",
+            "collected_data": "={{ $json.collected_data }}",
+            "created_at": "={{ $json.created_at }}",
+            "updated_at": "={{ $json.updated_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telegram_user_id",
+              "displayName": "telegram_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_username",
+              "displayName": "client_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "language",
+              "displayName": "language",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "collected_data",
+              "displayName": "collected_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "awaiting_doctor_response",
+              "displayName": "awaiting_doctor_response",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "doctor_question_for_patient",
+              "displayName": "doctor_question_for_patient",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1664,
+        112
+      ],
+      "id": "ffc60678-14ab-4efa-8078-58f5e88dd179",
+      "name": "Create Session",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.is_returning }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a1b51ea1-6d9e-435e-8d55-f332240ba172"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1664,
+        -96
+      ],
+      "id": "37b17b91-b712-4fc4-b9ad-c3b9d3f3d725",
+      "name": "Switch Returning"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Build New Session').first().json.telegram_user_id }}",
+        "text": "Здравствуйте! Я — бот-ассистент клиники «НоваМед».  ⚠️ Важно: я не врач и не ставлю диагнозов. Моя задача — собрать информацию о вашей жалобе и помочь записаться к нужному специалисту.  Опишите, пожалуйста, что вас беспокоит. Вы можете: — написать текстом — отправить голосовое сообщение — приложить фото",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1872,
+        16
+      ],
+      "id": "06573c09-6c61-4483-93db-77ee181574b0",
+      "name": "Send a text message",
+      "webhookId": "6107ab03-bb0e-4477-a523-0a05d9cce312",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Build New Session').first().json.telegram_user_id }}",
+        "text": "=С возвращением, {{ $('Build New Session').first().json.client_name }}!  Вижу, что вы уже обращались к нам ранее. Если жалоба связана с предыдущим визитом — упомяните это, я передам врачу контекст.  ⚠️ Напоминаю: я не врач и не ставлю диагнозов.  Опишите, что вас беспокоит — текстом, голосом или фото.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1872,
+        -144
+      ],
+      "id": "3d431731-8930-40d5-923c-e08ef1db613c",
+      "name": "Send Welcome Back",
+      "webhookId": "a0682c12-2b59-4d1a-ab8f-3f4d9eba0f86",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1141015070,
+          "mode": "list",
+          "cachedResultName": "Sessions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1141015070"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "telegram_user_id",
+              "lookupValue": "={{ $json.chat_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1248,
+        288
+      ],
+      "id": "000ffe22-c6c5-4a16-a3ed-4e6985a04c84",
+      "name": "Lookup Session",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Route: Doctor or Patient').first().json;\nconst sessions = $('Lookup Session').all();\n\n// Ищем активную сессию (не completed, не emergency, не closed)\nconst active = sessions.find(r => {\n  const stage = (r.json.stage || '').toLowerCase();\n  return r.json.session_id &&\n    stage !== 'completed' &&\n    stage !== 'emergency' &&\n    stage !== 'closed_by_new_start';\n});\n\nif (!active) {\n  return {\n    has_session: false,\n    chat_id: input.chat_id,\n    text: input.text\n  };\n}\n\nreturn {\n  has_session: true,\n  session_id: active.json.session_id,\n  stage: active.json.stage,\n  collected_data: active.json.collected_data || '{}',\n  language: active.json.language || '',\n  client_name: active.json.client_name || '',\n  chat_id: input.chat_id,\n  text: input.text,\n  voice_used: input.voice_used || 'FALSE',\n  photo_analysis: input.photo_analysis || ''\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        288
+      ],
+      "id": "4e4e3dbd-b8fe-4291-92a2-9f66b0e5862e",
+      "name": "Find Active Session"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.has_session }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "e1e7c542-f8cb-446e-bad0-3d9701078af5"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1664,
+        288
+      ],
+      "id": "0bdc91c0-dd93-427f-8663-2eb4e6bfb6ee",
+      "name": "Switch Has Session"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "У вас нет активного обращения. Нажмите /start, чтобы начать новое.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1872,
+        496
+      ],
+      "id": "cc6a44a5-2e84-42ef-bb6d-1b8cb0925944",
+      "name": "Send No Session",
+      "webhookId": "9cbe0968-e1c7-4f98-b5e7-a0dc7b3825a0",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.stage }}",
+                    "rightValue": "awaiting_complaint",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "c495045b-e937-4a99-91b4-506a88f377da"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "121e4931-6e52-417a-8d39-a15e23813825",
+                    "leftValue": "={{ $json.stage }}",
+                    "rightValue": "gathering_details",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "bdc3e7e3-2e9c-4ad2-9356-c40bb159aac0",
+                    "leftValue": "={{ $json.stage }}",
+                    "rightValue": "awaiting_doctor_clarification",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1872,
+        160
+      ],
+      "id": "1eefae29-3673-4005-a302-916d042aa31b",
+      "name": "Switch Route by Stage"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "Ваше обращение уже передано врачу. Если у вас новая жалоба — нажмите /start.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        352
+      ],
+      "id": "2e8a8afd-7e6b-4d40-a46f-e1847aed8777",
+      "name": "Send Completed Message",
+      "webhookId": "1ad87c20-6f55-425f-8c25-9196c918627f",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1246133635,
+          "mode": "list",
+          "cachedResultName": "Services",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1246133635"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2160,
+        64
+      ],
+      "id": "2d5dd2f6-b1a4-4488-a9d2-a492d86042a1",
+      "name": "Get RAG Services",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const session = $('Find Active Session').first().json;\nconst input = $('Route: Doctor or Patient').first().json;\nconst servicesRows = $('Get RAG Services').all();\n\n// Собираем справочник услуг для RAG\nconst services = servicesRows\n  .filter(r => r.json.service_id)\n  .map(r => `${r.json.direction}: ${r.json.service_name} — ${r.json.description}`)\n  .join('\\n');\n\n// Парсим собранные данные\nlet collected = {};\ntry {\n  collected = JSON.parse(session.collected_data || '{}');\n} catch(e) {\n  collected = {};\n}\n\n// Считаем раунды уточнений\nconst clarificationCount = collected.clarification_count || 0;\nconst maxClarifications = 5;\nconst forceComplete = clarificationCount >= maxClarifications;\n\n// Добавляем новое сообщение\nif (session.stage === 'awaiting_complaint') {\n  collected.complaint = input.text;\n  if (input.photo_analysis) {\n    collected.photo_analysis = input.photo_analysis;\n  }\n} else {\n  // gathering_details — добавляем ответ на уточнение\n  collected[`clarification_${clarificationCount}`] = input.text;\n  if (input.photo_analysis) {\n    collected[`photo_analysis_${clarificationCount}`] = input.photo_analysis;\n  }\n}\ncollected.clarification_count = clarificationCount + (session.stage === 'gathering_details' ? 1 : 0);\n\n// Формируем историю диалога для LLM\nconst collectedText = Object.entries(collected)\n  .filter(([k, v]) => k !== 'clarification_count' && v)\n  .map(([k, v]) => `${k}: ${v}`)\n  .join('\\n');\n\nconst systemPrompt = `Ты — медицинский ассистент-интервьюер клиники «НоваМед». Твоя задача — собрать информацию о жалобе пациента для врача.\n\nПРАВИЛА:\n1. Ты НЕ врач и НЕ ставишь диагнозов. Только собираешь информацию.\n2. Общайся вежливо, спокойно, на языке пациента.\n3. Определи язык пациента по первому сообщению и веди диалог на нём.\n\nОБЯЗАТЕЛЬНЫЕ ПОЛЯ для сбора:\n- Основная жалоба (что беспокоит)\n- Локализация (где именно)\n- Длительность (как давно)\n- Интенсивность (по шкале 1-10 или словами)\n- Сопутствующие симптомы\n- Хронические заболевания / аллергии\n- Возраст пациента (или возраст ребёнка, если обращение по поводу ребёнка)\n\nЭКСТРЕННЫЕ СИМПТОМЫ — если пациент описывает ЛЮБОЙ из следующих, НЕМЕДЛЕННО установи is_emergency = true:\n- Сильная боль в груди с одышкой\n- Потеря сознания\n- Сильное кровотечение, которое не останавливается\n- Затруднённое дыхание / удушье\n- Внезапная слабость одной стороны тела, нарушение речи (признаки инсульта)\n- Судороги\n- Тяжёлая аллергическая реакция (отёк горла, невозможность дышать)\n\nСПРАВОЧНИК УСЛУГ КЛИНИКИ:\n${services}\n\nСОБРАННЫЕ ДАННЫЕ НА ДАННЫЙ МОМЕНТ:\n${collectedText || 'Пока ничего не собрано — это первое сообщение пациента.'}\n\n${forceComplete ? 'ВНИМАНИЕ: Достигнут лимит уточнений. Заверши сбор с тем, что есть. Установи is_sufficient = true.' : ''}\n\nОТВЕТЬ СТРОГО В JSON:\n{\n  \"is_emergency\": true/false,\n  \"emergency_description\": \"описание экстренной ситуации (только если is_emergency=true)\",\n  \"is_sufficient\": true/false,\n  \"detected_language\": \"ru/en/другой код языка\",\n  \"next_question\": \"следующий уточняющий вопрос для пациента (только если is_sufficient=false и is_emergency=false)\",\n  \"direction_hint\": \"предварительное направление (cardiology/neurology/pediatrics/и т.д.) если уже понятно, иначе пустая строка\"\n}`;\n\nconst requestBody = {\n  model: 'deepseek-v4-flash',\n  response_format: { type: 'json_object' },\n  messages: [\n    { role: 'system', content: systemPrompt },\n    { role: 'user', content: input.text }\n  ],\n  temperature: 0.3\n};\n\nreturn {\n  request_body: JSON.stringify(requestBody),\n  collected_data: JSON.stringify(collected),\n  session_id: session.session_id,\n  chat_id: session.chat_id,\n  client_name: session.client_name,\n  voice_used: input.voice_used || 'FALSE',\n  photo_analysis: input.photo_analysis || ''\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2368,
+        64
+      ],
+      "id": "07b80acc-aa6d-41f9-a109-e681f055f5d8",
+      "name": "Build Interviewer Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2576,
+        64
+      ],
+      "id": "fc3414a4-44cd-4c7f-9430-861996d6cebe",
+      "name": "LLM Interviewer",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mP5T7DHPI4HKzCJm",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Build Interviewer Prompt').first().json;\nlet content = $json.choices[0].message.content;\n\n// Чистим markdown обёртку если есть\ncontent = content.replace(/```json\\s*/g, '').replace(/```\\s*/g, '').trim();\n\nlet parsed = {};\ntry {\n  parsed = JSON.parse(content);\n} catch(e) {\n  // Если JSON обрезан — пробуем починить\n  try {\n    if (!content.endsWith('}')) content += '}';\n    parsed = JSON.parse(content);\n  } catch(e2) {\n    parsed = {\n      is_emergency: false,\n      is_sufficient: false,\n      detected_language: 'ru',\n      next_question: 'Пожалуйста, расскажите подробнее о вашей жалобе.',\n      direction_hint: ''\n    };\n  }\n}\n\nreturn {\n  is_emergency: parsed.is_emergency || false,\n  emergency_description: parsed.emergency_description || '',\n  is_sufficient: parsed.is_sufficient || false,\n  detected_language: parsed.detected_language || 'ru',\n  next_question: parsed.next_question || '',\n  direction_hint: parsed.direction_hint || '',\n  collected_data: prev.collected_data,\n  session_id: prev.session_id,\n  chat_id: prev.chat_id,\n  client_name: prev.client_name,\n  voice_used: prev.voice_used,\n  photo_analysis: prev.photo_analysis\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2784,
+        64
+      ],
+      "id": "0fa07840-563f-4c6f-aeab-6da228383d8f",
+      "name": "Parse Interviewer Response"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.is_emergency ? 'emergency' : ($json.is_sufficient ? 'sufficient' : 'need_more') }}",
+                    "rightValue": "emergency",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "9e85ec3d-6fec-44f2-b4ee-c3df6a737790"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "62c78818-ed69-44b8-b13e-714b1ce567f2",
+                    "leftValue": "={{ $json.is_emergency ? 'emergency' : ($json.is_sufficient ? 'sufficient' : 'need_more') }}",
+                    "rightValue": "sufficient",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0c5d6808-cdff-4cd5-a6d0-2123788d5126",
+                    "leftValue": "={{ $json.is_emergency ? 'emergency' : ($json.is_sufficient ? 'sufficient' : 'need_more') }}",
+                    "rightValue": "need_more",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2992,
+        64
+      ],
+      "id": "c6ce6bf0-cff7-4412-951f-fde9edf26e95",
+      "name": "Switch Emergency or Sufficient"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1141015070,
+          "mode": "list",
+          "cachedResultName": "Sessions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1141015070"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $json.session_id }}",
+            "stage": "gathering_details",
+            "language": "={{ $json.detected_language }}",
+            "collected_data": "={{ $json.collected_data }}",
+            "updated_at": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [
+            "session_id"
+          ],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "telegram_user_id",
+              "displayName": "telegram_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_username",
+              "displayName": "client_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "language",
+              "displayName": "language",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "collected_data",
+              "displayName": "collected_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "awaiting_doctor_response",
+              "displayName": "awaiting_doctor_response",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "doctor_question_for_patient",
+              "displayName": "doctor_question_for_patient",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3200,
+        240
+      ],
+      "id": "29af3686-7d7a-41c4-a1b3-27038b3afcba",
+      "name": "Update Session Gathering",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Interviewer Response').first().json.chat_id }}",
+        "text": "={{ $('Parse Interviewer Response').first().json.next_question }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3408,
+        240
+      ],
+      "id": "bd2ec62c-035a-44bf-a9f7-68463e1ee2da",
+      "name": "Send Next Question",
+      "webhookId": "a2be631a-f7b3-4223-a415-89eb71d6d0e2",
+      "executeOnce": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1141015070,
+          "mode": "list",
+          "cachedResultName": "Sessions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1141015070"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $json.session_id }}",
+            "stage": "emergency",
+            "collected_data": "={{ $json.collected_data }}",
+            "updated_at": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [
+            "session_id"
+          ],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "telegram_user_id",
+              "displayName": "telegram_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_username",
+              "displayName": "client_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "language",
+              "displayName": "language",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "collected_data",
+              "displayName": "collected_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "awaiting_doctor_response",
+              "displayName": "awaiting_doctor_response",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "doctor_question_for_patient",
+              "displayName": "doctor_question_for_patient",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3200,
+        -176
+      ],
+      "id": "c0135cba-13c5-48d2-b79b-21718faa7b76",
+      "name": "Update Session Emergency",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Interviewer Response').first().json.chat_id }}",
+        "text": "⚠️ ВНИМАНИЕ  По описанным симптомам вам может потребоваться экстренная медицинская помощь.  🚨 Позвоните 103 (скорая помощь) или обратитесь в ближайшее отделение неотложной помощи.  Это не диагноз — я не врач. Но описанные симптомы требуют немедленной оценки специалистом. Не откладывайте.  Администратор клиники уведомлён о вашем обращении.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3408,
+        -176
+      ],
+      "id": "5a6b58c7-5997-45df-a904-f45872f9987a",
+      "name": "Send Emergency Patient",
+      "webhookId": "d1ec23ab-c95b-4560-ab3f-21fe683bd61c",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('Parse Interviewer Response').first().json;\nconst session = $('Find Active Session').first().json;\n\nconst text = `🚨 ЭКСТРЕННОЕ ОБРАЩЕНИЕ\\n\\n` +\n  `Пациент: ${session.client_name}\\n` +\n  `Telegram: @${(session.chat_id)}\\n` +\n  `Описание: ${parsed.emergency_description}\\n\\n` +\n  `Собранные данные:\\n${parsed.collected_data}\\n\\n` +\n  `Пациенту рекомендовано вызвать скорую (103).`;\n\nreturn {\n  text: text,\n  admin_chat_id: '448587092'\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3600,
+        -176
+      ],
+      "id": "011c207e-3057-4b98-b994-652255bd1a05",
+      "name": "Build Admin Emergency Alert"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.admin_chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3808,
+        -176
+      ],
+      "id": "bc1087b4-3144-440b-b871-f8b0a4952f8e",
+      "name": "Send Admin Emergency",
+      "webhookId": "7d639ca8-ee9f-4111-a7a6-ecbcda81ece4",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Parse Interviewer Response').first().json;\nconst servicesRows = $('Get RAG Services').all();\n\nconst services = servicesRows\n  .filter(r => r.json.service_id)\n  .map(r => `${r.json.direction}: ${r.json.service_name} — ${r.json.description}`)\n  .join('\\n');\n\nconst systemPrompt = `Ты — медицинский аналитик клиники «НоваМед». На основе собранных данных пациента сформируй структурированную карту для врача.\n\nСОБРАННЫЕ ДАННЫЕ:\n${prev.collected_data}\n\nСПРАВОЧНИК НАПРАВЛЕНИЙ КЛИНИКИ:\n${services}\n\nДОСТУПНЫЕ НАПРАВЛЕНИЯ (выбери ОДНО основное):\ncardiology, neurology, dermatology, allergology, gastroenterology, surgery, urology, pediatrics, therapy\n\nОТВЕТЬ СТРОГО В JSON:\n{\n  \"direction\": \"одно из направлений выше\",\n  \"urgency\": \"low / medium / high\",\n  \"severity\": \"mild / moderate / severe\",\n  \"summary\": \"краткое описание ситуации для врача (2-3 предложения)\",\n  \"key_symptoms\": \"перечисление основных симптомов через запятую\",\n  \"attention_points\": \"на что врачу обратить особое внимание\",\n  \"recommended_tests\": \"рекомендуемые анализы/обследования из справочника клиники\"\n}`;\n\nconst requestBody = {\n  model: 'deepseek-v4-flash',\n  response_format: { type: 'json_object' },\n  messages: [\n    { role: 'system', content: systemPrompt },\n    { role: 'user', content: 'Сформируй карту пациента.' }\n  ],\n  temperature: 0.2\n};\n\nreturn {\n  request_body: JSON.stringify(requestBody),\n  session_id: prev.session_id,\n  chat_id: prev.chat_id,\n  client_name: prev.client_name,\n  collected_data: prev.collected_data,\n  detected_language: prev.detected_language,\n  voice_used: prev.voice_used,\n  photo_analysis: prev.photo_analysis\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        64
+      ],
+      "id": "7601e530-cfc5-4c16-89c6-b11b624f95da",
+      "name": "Build Final Analysis Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3408,
+        64
+      ],
+      "id": "c99e52ff-f2e7-4e92-991b-5f9d165e417c",
+      "name": "LLM Final Analysis",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mP5T7DHPI4HKzCJm",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Build Final Analysis Prompt').first().json;\nlet content = $json.choices[0].message.content;\ncontent = content.replace(/```json\\s*/g, '').replace(/```\\s*/g, '').trim();\n\nlet parsed = {};\ntry {\n  parsed = JSON.parse(content);\n} catch(e) {\n  try {\n    if (!content.endsWith('}')) content += '}';\n    parsed = JSON.parse(content);\n  } catch(e2) {\n    parsed = {\n      direction: 'therapy',\n      urgency: 'medium',\n      severity: 'moderate',\n      summary: 'Не удалось провести автоматический анализ. Требуется ручной разбор.',\n      key_symptoms: '',\n      attention_points: '',\n      recommended_tests: ''\n    };\n  }\n}\n\nconst now = new Date().toISOString();\nconst inquiryId = 'INQ-' + now.replace(/\\D/g, '').slice(0, 12);\n\nreturn {\n  inquiry_id: inquiryId,\n  date: now.slice(0, 10),\n  session_id: prev.session_id,\n  client_name: prev.client_name,\n  client_telegram_id: prev.chat_id,\n  language: prev.detected_language,\n  direction: parsed.direction || 'therapy',\n  urgency: parsed.urgency || 'medium',\n  severity: parsed.severity || 'moderate',\n  summary: parsed.summary || '',\n  key_symptoms: parsed.key_symptoms || '',\n  attention_points: parsed.attention_points || '',\n  recommended_tests: parsed.recommended_tests || '',\n  original_text: prev.collected_data,\n  photo_analysis: prev.photo_analysis || '',\n  voice_used: prev.voice_used || 'FALSE',\n  chat_id: prev.chat_id\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3616,
+        64
+      ],
+      "id": "2dfc273e-e716-456b-9afb-6504991c4f80",
+      "name": "Parse Final Analysis"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1931181431,
+          "mode": "list",
+          "cachedResultName": "Inquiries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1931181431"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "inquiry_id": "={{ $json.inquiry_id }}",
+            "date": "={{ $json.date }}",
+            "session_id": "={{ $json.session_id }}",
+            "client_name": "={{ $json.client_name }}",
+            "client_telegram_id": "={{ $json.client_telegram_id }}",
+            "language": "={{ $json.language }}",
+            "direction": "={{ $json.direction }}",
+            "urgency": "={{ $json.urgency }}",
+            "severity": "={{ $json.severity }}",
+            "summary": "={{ $json.summary }}",
+            "key_symptoms": "={{ $json.key_symptoms }}",
+            "attention_points": "={{ $json.attention_points }}",
+            "recommended_tests": "={{ $json.recommended_tests }}",
+            "original_text": "={{ $json.original_text }}",
+            "photo_analysis": "={{ $json.photo_analysis }}",
+            "voice_used": "={{ $json.voice_used }}",
+            "status": "pending",
+            "created_at": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "inquiry_id",
+              "displayName": "inquiry_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_username",
+              "displayName": "client_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_telegram_id",
+              "displayName": "client_telegram_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "language",
+              "displayName": "language",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "direction",
+              "displayName": "direction",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "urgency",
+              "displayName": "urgency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "severity",
+              "displayName": "severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "key_symptoms",
+              "displayName": "key_symptoms",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "attention_points",
+              "displayName": "attention_points",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recommended_tests",
+              "displayName": "recommended_tests",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "original_text",
+              "displayName": "original_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "photo_analysis",
+              "displayName": "photo_analysis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "voice_used",
+              "displayName": "voice_used",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "is_returning",
+              "displayName": "is_returning",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "previous_inquiries",
+              "displayName": "previous_inquiries",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "feedback_score",
+              "displayName": "feedback_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "feedback_text",
+              "displayName": "feedback_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "feedback_sent",
+              "displayName": "feedback_sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3824,
+        224
+      ],
+      "id": "0f3fb19d-921d-45c5-99a4-ba72458f9a7f",
+      "name": "Save Inquiry",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1141015070,
+          "mode": "list",
+          "cachedResultName": "Sessions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1141015070"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $json.session_id }}",
+            "stage": "completed",
+            "language": "={{ $json.language }}",
+            "updated_at": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [
+            "session_id"
+          ],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "telegram_user_id",
+              "displayName": "telegram_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_username",
+              "displayName": "client_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "language",
+              "displayName": "language",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "collected_data",
+              "displayName": "collected_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "awaiting_doctor_response",
+              "displayName": "awaiting_doctor_response",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "doctor_question_for_patient",
+              "displayName": "doctor_question_for_patient",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        4016,
+        224
+      ],
+      "id": "5f6618ef-3024-449b-9432-e376d113d86e",
+      "name": "Update Session Completed",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 605204595,
+          "mode": "list",
+          "cachedResultName": "Doctors",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=605204595"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3824,
+        64
+      ],
+      "id": "e318adc5-6d87-41a2-ac7b-5bd23f176eea",
+      "name": "Get Doctors",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inquiry = $('Parse Final Analysis').first().json;\nconst doctors = $('Get Doctors').all();\n\nconst direction = inquiry.direction;\n\n// Фильтруем: активен + специализация содержит direction + не перегружен\nconst candidates = doctors\n  .filter(r => {\n    if (!r.json.doctor_id || r.json.status !== 'active') return false;\n    const specs = (r.json.specializations || '').split(',').map(s => s.trim());\n    return specs.includes(direction);\n  })\n  .filter(r => {\n    const active = parseInt(r.json.active_patients) || 0;\n    const max = parseInt(r.json.max_patients) || 999;\n    return active < max;\n  })\n  .sort((a, b) => {\n    const aLoad = (parseInt(a.json.active_patients) || 0) / (parseInt(a.json.max_patients) || 1);\n    const bLoad = (parseInt(b.json.active_patients) || 0) / (parseInt(b.json.max_patients) || 1);\n    return aLoad - bLoad;\n  });\n\n// Fallback — любой доступный врач\nlet matched = candidates[0] || null;\nif (!matched) {\n  const fallback = doctors\n    .filter(r => r.json.doctor_id && r.json.status === 'active')\n    .filter(r => (parseInt(r.json.active_patients) || 0) < (parseInt(r.json.max_patients) || 999))\n    .sort((a, b) => (parseInt(a.json.active_patients) || 0) - (parseInt(b.json.active_patients) || 0));\n  matched = fallback[0] || null;\n}\n\nif (!matched) {\n  return {\n    found_doctor: false,\n    inquiry_id: inquiry.inquiry_id,\n    chat_id: inquiry.chat_id\n  };\n}\n\nreturn {\n  found_doctor: true,\n  doctor_id: matched.json.doctor_id,\n  doctor_name: matched.json.name,\n  doctor_telegram_id: matched.json.telegram_id,\n  inquiry_id: inquiry.inquiry_id,\n  direction: inquiry.direction,\n  urgency: inquiry.urgency,\n  severity: inquiry.severity,\n  summary: inquiry.summary,\n  key_symptoms: inquiry.key_symptoms,\n  attention_points: inquiry.attention_points,\n  recommended_tests: inquiry.recommended_tests,\n  client_name: inquiry.client_name,\n  chat_id: inquiry.chat_id,\n  language: inquiry.language\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4032,
+        64
+      ],
+      "id": "74664b0c-4475-4cd4-bcaa-a20ba8fedf9d",
+      "name": "Match Doctor"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1245674878,
+          "mode": "list",
+          "cachedResultName": "Assignments",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1245674878"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "assignment_id": "=ASG-{{ new Date().toISOString().replace(/\\D/g, '').slice(0, 12) }}",
+            "inquiry_id": "={{ $json.inquiry_id }}",
+            "doctor_id": "={{ $json.doctor_id }}",
+            "action": "assigned",
+            "timestamp": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "assignment_id",
+              "displayName": "assignment_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "inquiry_id",
+              "displayName": "inquiry_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "doctor_id",
+              "displayName": "doctor_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "previous_doctor_id",
+              "displayName": "previous_doctor_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "appointment_datetime",
+              "displayName": "appointment_datetime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "calendar_event_id",
+              "displayName": "calendar_event_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        4240,
+        64
+      ],
+      "id": "2e2cdcb4-a2bb-44cb-8955-76ea81bd3ea9",
+      "name": "Save Assignment",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Match Doctor').first().json;\n\nconst urgencyEmoji = {\n  'high': '🔴', 'medium': '🟡', 'low': '🟢'\n};\n\nconst text = `📋 Новое обращение\\n\\n` +\n  `👤 Пациент: ${d.client_name}\\n` +\n  `📁 Направление: ${d.direction}\\n` +\n  `${urgencyEmoji[d.urgency] || '⚪'} Срочность: ${d.urgency}\\n` +\n  `⚖️ Сложность: ${d.severity}\\n\\n` +\n  `📝 Описание:\\n${d.summary}\\n\\n` +\n  `🔍 Ключевые симптомы: ${d.key_symptoms}\\n\\n` +\n  `⚠️ Обратить внимание: ${d.attention_points}\\n\\n` +\n  `🔬 Рекомендуемые обследования: ${d.recommended_tests}\\n\\n` +\n  `ID: ${d.inquiry_id}`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '✅ Подтвердить приём', callback_data: `confirm_${d.inquiry_id}` },\n      { text: '❓ Запросить инфо', callback_data: `request_${d.inquiry_id}` }\n    ],\n    [\n      { text: '🔄 Перенаправить', callback_data: `reassign_${d.inquiry_id}` },\n      { text: '❌ Отклонить', callback_data: `decline_${d.inquiry_id}` }\n    ]\n  ]\n};\n\nreturn {\n  send_body: JSON.stringify({\n    chat_id: d.doctor_telegram_id,\n    text: text,\n    reply_markup: keyboard\n  }),\n  patient_chat_id: d.chat_id,\n  doctor_name: d.doctor_name,\n  language: d.language\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4448,
+        64
+      ],
+      "id": "5804e0a0-a34f-4715-8bce-ae50a1060d2f",
+      "name": "Build Doctor Message"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.send_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4656,
+        64
+      ],
+      "id": "4e552cbc-359c-4754-88bd-e863090c802b",
+      "name": "Send to Doctor"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Build Doctor Message').first().json.patient_chat_id }}",
+        "text": "=✅ Спасибо! Информация собрана и передана врачу ({{ $('Build Doctor Message').first().json.doctor_name }}).\n\nВрач рассмотрит ваше обращение и свяжется с вами для записи на приём. Ожидайте.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        4864,
+        64
+      ],
+      "id": "30fda93e-b26b-43d7-aa7d-5c467593d3cc",
+      "name": "Send Patient Confirmation",
+      "webhookId": "81bf52fc-144b-4fbb-a9f7-05ba8505f254",
+      "executeOnce": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Check Input Type').first().json;\nconst data = input.callback_data || '';\n\n// Формат: confirm_INQ-xxx, request_INQ-xxx, reassign_INQ-xxx, decline_INQ-xxx\nconst parts = data.split('_');\nconst action = parts[0]; // confirm, request, reassign, decline\nconst inquiryId = parts.slice(1).join('_'); // INQ-202607...\n\nreturn {\n  action: action,\n  inquiry_id: inquiryId,\n  callback_id: input.callback_id,\n  message_id: input.message_id,\n  doctor_chat_id: input.chat_id,\n  doctor_name: input.user_name\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        -480
+      ],
+      "id": "290db4eb-1d45-4048-a5eb-ac3bcb5a92d4",
+      "name": "Parse Callback Data"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "confirm",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "21c32cec-742a-45eb-9520-c9a8f509c049"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "confirm"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0b04a36d-5c91-48ec-9084-9806ac498139",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "request",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "request"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "5fc7363b-7c10-407d-aca1-211a41e64c44",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "reassign",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reassign"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c0965b02-c833-43f6-8c8d-6187b3c0f48d",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "decline",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "decline"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        -528
+      ],
+      "id": "574863de-09fa-425f-8fcb-21fe664f0462",
+      "name": "Switch Callback Action"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1931181431,
+          "mode": "list",
+          "cachedResultName": "Inquiries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1931181431"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "inquiry_id",
+              "lookupValue": "={{ $json.inquiry_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        960,
+        -736
+      ],
+      "id": "b223e213-2dee-46e3-bc3a-2d1627b50199",
+      "name": "Get Inquiry for Confirm",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1931181431,
+          "mode": "list",
+          "cachedResultName": "Inquiries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1931181431"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "inquiry_id": "={{ $('Parse Callback Data').first().json.inquiry_id }}",
+            "status": "confirmed"
+          },
+          "matchingColumns": [
+            "inquiry_id"
+          ],
+          "schema": [
+            {
+              "id": "inquiry_id",
+              "displayName": "inquiry_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_username",
+              "displayName": "client_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_telegram_id",
+              "displayName": "client_telegram_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "language",
+              "displayName": "language",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "direction",
+              "displayName": "direction",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "urgency",
+              "displayName": "urgency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "severity",
+              "displayName": "severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "key_symptoms",
+              "displayName": "key_symptoms",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "attention_points",
+              "displayName": "attention_points",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recommended_tests",
+              "displayName": "recommended_tests",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "original_text",
+              "displayName": "original_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "photo_analysis",
+              "displayName": "photo_analysis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "voice_used",
+              "displayName": "voice_used",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "is_returning",
+              "displayName": "is_returning",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "previous_inquiries",
+              "displayName": "previous_inquiries",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "feedback_score",
+              "displayName": "feedback_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "feedback_text",
+              "displayName": "feedback_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "feedback_sent",
+              "displayName": "feedback_sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1168,
+        -736
+      ],
+      "id": "04eefa83-5970-4dfa-ab06-8626577483a6",
+      "name": "Update Inquiry Confirmed",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1245674878,
+          "mode": "list",
+          "cachedResultName": "Assignments",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1245674878"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "assignment_id": "=ASG-{{ new Date().toISOString().replace(/\\D/g, '').slice(0, 12) }}",
+            "inquiry_id": "={{ $('Parse Callback Data').first().json.inquiry_id }}",
+            "action": "confirmed",
+            "timestamp": "={{ new Date().toISOString() }}",
+            "message_id": "={{ $('Parse Callback Data').first().json.message_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "assignment_id",
+              "displayName": "assignment_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "inquiry_id",
+              "displayName": "inquiry_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "doctor_id",
+              "displayName": "doctor_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "previous_doctor_id",
+              "displayName": "previous_doctor_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "appointment_datetime",
+              "displayName": "appointment_datetime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "calendar_event_id",
+              "displayName": "calendar_event_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1168,
+        -912
+      ],
+      "id": "6741359e-45c3-49d1-af96-2280b1c69e1a",
+      "name": "Save Confirm Assignment",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/answerCallbackQuery",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\"callback_query_id\":\"{{ $('Parse Callback Data').first().json.callback_id }}\",\"text\":\"Приём подтверждён\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1168,
+        -1072
+      ],
+      "id": "14ba34cf-d09e-4733-8d01-254520eb50b9",
+      "name": "Answer Callback Confirm"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cb = $('Parse Callback Data').first().json;\nconst inq = $('Get Inquiry for Confirm').first().json;\n\nconst answerBody = JSON.stringify({\n  callback_query_id: cb.callback_id,\n  text: 'Приём подтверждён'\n});\n\nconst editBody = JSON.stringify({\n  chat_id: cb.doctor_chat_id,\n  message_id: parseInt(cb.message_id),\n  text: `✅ ПОДТВЕРЖДЕНО\\n\\n` +\n    `Пациент: ${inq.client_name}\\n` +\n    `Направление: ${inq.direction}\\n` +\n    `Срочность: ${inq.urgency}\\n\\n` +\n    `${inq.summary}\\n\\n` +\n    `Подтверждено: ${cb.doctor_name}`\n});\n\nconst notifyBody = JSON.stringify({\n  chat_id: inq.client_telegram_id,\n  text: `✅ Врач ${cb.doctor_name} подтвердил ваш приём.\\n\\n` +\n    `Направление: ${inq.direction}\\n` +\n    `Рекомендуемые обследования: ${inq.recommended_tests}\\n\\n` +\n    `Ожидайте информацию о дате и времени.`\n});\n\nreturn {\n  answer_body: answerBody,\n  edit_body: editBody,\n  notify_body: notifyBody\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        -1232
+      ],
+      "id": "5d2039fc-0f7a-4c70-ac99-f10346295bf9",
+      "name": "Build Confirm Response"
+    },
+    {
+      "parameters": {
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/answerCallbackQuery",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.answer_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1376,
+        -1232
+      ],
+      "id": "12cd0cda-02a2-4968-8880-3d71317fccc1",
+      "name": "Answer Callback Confirm1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/editMessageText",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Build Confirm Response').first().json.edit_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1584,
+        -1232
+      ],
+      "id": "5571caaa-ee0e-47d3-a9d7-036ecda75512",
+      "name": "Edit Message Confirm"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Build Confirm Response').first().json.notify_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1760,
+        -1232
+      ],
+      "id": "720fec4e-eb3f-45a8-90a4-78c559a8e392",
+      "name": "Notify Patient Confirmed"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1931181431,
+          "mode": "list",
+          "cachedResultName": "Inquiries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1931181431"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "inquiry_id",
+              "lookupValue": "={{ $json.inquiry_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        960,
+        -320
+      ],
+      "id": "ed714879-aefd-48b6-a13f-710aa1fc25ea",
+      "name": "Get Inquiry for Reassign",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1245674878,
+          "mode": "list",
+          "cachedResultName": "Assignments",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1245674878"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "inquiry_id",
+              "lookupValue": "={{ $('Parse Callback Data').first().json.inquiry_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1168,
+        -320
+      ],
+      "id": "5134b286-9b55-4287-9a86-ca3a45dec4af",
+      "name": "Get All Assignments",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 605204595,
+          "mode": "list",
+          "cachedResultName": "Doctors",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=605204595"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1376,
+        -320
+      ],
+      "id": "6020efa3-d97d-4d5d-825c-7e52b688ee41",
+      "name": "Get Doctors for Reassign",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cb = $('Parse Callback Data').first().json;\nconst inq = $('Get Inquiry for Reassign').first().json;\nconst assignments = $('Get All Assignments').all();\nconst doctors = $('Get Doctors for Reassign').all();\n\n// Собираем ID врачей, которые уже отклонили или получали эту заявку\nconst excludeIds = assignments\n  .filter(r => r.json.inquiry_id === cb.inquiry_id)\n  .map(r => r.json.doctor_id);\nexcludeIds.push(cb.doctor_chat_id); // текущий врач тоже\n\nconst direction = inq.direction || 'therapy';\n\nconst candidates = doctors\n  .filter(r => {\n    if (!r.json.doctor_id || r.json.status !== 'active') return false;\n    if (excludeIds.includes(r.json.doctor_id)) return false;\n    // Не исключаем по telegram_id, исключаем по doctor_id\n    const specs = (r.json.specializations || '').split(',').map(s => s.trim());\n    return specs.includes(direction);\n  })\n  .filter(r => {\n    const active = parseInt(r.json.active_patients) || 0;\n    const max = parseInt(r.json.max_patients) || 999;\n    return active < max;\n  })\n  .sort((a, b) => {\n    const aLoad = (parseInt(a.json.active_patients) || 0) / (parseInt(a.json.max_patients) || 1);\n    const bLoad = (parseInt(b.json.active_patients) || 0) / (parseInt(b.json.max_patients) || 1);\n    return aLoad - bLoad;\n  });\n\nconst next = candidates[0] || null;\n\n// Формируем answer callback\nconst answerBody = JSON.stringify({\n  callback_query_id: cb.callback_id,\n  text: next ? 'Перенаправлено другому врачу' : 'Нет доступных врачей'\n});\n\nconst editBody = JSON.stringify({\n  chat_id: cb.doctor_chat_id,\n  message_id: parseInt(cb.message_id),\n  text: next\n    ? `🔄 Перенаправлено врачу ${next.json.name}\\n\\nПациент: ${inq.client_name}\\nID: ${cb.inquiry_id}`\n    : `❌ Отклонено. Нет доступных врачей по направлению ${direction}.\\n\\nПациент: ${inq.client_name}\\nID: ${cb.inquiry_id}`\n});\n\nif (!next) {\n  const notifyPatientBody = JSON.stringify({\n    chat_id: inq.client_telegram_id,\n    text: '😔 К сожалению, сейчас нет доступных врачей по вашему направлению. ' +\n      'Администратор клиники свяжется с вами в ближайшее время.'\n  });\n\n  return {\n    found_next: false,\n    answer_body: answerBody,\n    edit_body: editBody,\n    notify_patient_body: notifyPatientBody,\n    inquiry_id: cb.inquiry_id,\n    action: cb.action\n  };\n}\n\n// Формируем карту для нового врача\nconst urgencyEmoji = { 'high': '🔴', 'medium': '🟡', 'low': '🟢' };\nconst cardText = `📋 Перенаправленное обращение\\n\\n` +\n  `👤 Пациент: ${inq.client_name}\\n` +\n  `📁 Направление: ${inq.direction}\\n` +\n  `${urgencyEmoji[inq.urgency] || '⚪'} Срочность: ${inq.urgency}\\n` +\n  `⚖️ Сложность: ${inq.severity}\\n\\n` +\n  `📝 Описание:\\n${inq.summary}\\n\\n` +\n  `🔍 Ключевые симптомы: ${inq.key_symptoms}\\n\\n` +\n  `⚠️ Обратить внимание: ${inq.attention_points}\\n\\n` +\n  `🔬 Рекомендуемые обследования: ${inq.recommended_tests}\\n\\n` +\n  `ID: ${cb.inquiry_id}`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '✅ Подтвердить приём', callback_data: `confirm_${cb.inquiry_id}` },\n      { text: '❓ Запросить инфо', callback_data: `request_${cb.inquiry_id}` }\n    ],\n    [\n      { text: '🔄 Перенаправить', callback_data: `reassign_${cb.inquiry_id}` },\n      { text: '❌ Отклонить', callback_data: `decline_${cb.inquiry_id}` }\n    ]\n  ]\n};\n\nconst sendNextBody = JSON.stringify({\n  chat_id: next.json.telegram_id,\n  text: cardText,\n  reply_markup: keyboard\n});\n\nconst assignBody = {\n  assignment_id: 'ASG-' + new Date().toISOString().replace(/\\D/g, '').slice(0, 12),\n  inquiry_id: cb.inquiry_id,\n  doctor_id: next.json.doctor_id,\n  action: cb.action === 'decline' ? 'reassigned_after_decline' : 'reassigned',\n  previous_doctor_id: cb.doctor_chat_id,\n  timestamp: new Date().toISOString()\n};\n\nreturn {\n  found_next: true,\n  answer_body: answerBody,\n  edit_body: editBody,\n  send_next_body: sendNextBody,\n  assign: assignBody,\n  inquiry_id: cb.inquiry_id,\n  action: cb.action\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        -320
+      ],
+      "id": "5d67d64e-fd84-458f-800e-54970af138f2",
+      "name": "Find Next Doctor"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/answerCallbackQuery",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.answer_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1792,
+        -320
+      ],
+      "id": "def8c502-4689-4bf2-9ed2-8744a404cbfe",
+      "name": "Answer Callback Reassign"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/editMessageText",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Find Next Doctor').first().json.edit_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2000,
+        -320
+      ],
+      "id": "9155e2f4-dd00-4f14-9da2-e7fc1def6eb8",
+      "name": "Edit Message Reassign"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Find Next Doctor').first().json.found_next }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "302bcb15-7070-4fd7-8ae3-f3bc078da2cc"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "true"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2208,
+        -320
+      ],
+      "id": "6ad450ef-600b-427b-86d5-5c91852066bd",
+      "name": "Switch Found Next"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Find Next Doctor').first().json.send_next_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2416,
+        -400
+      ],
+      "id": "229df3bf-75e2-4baf-86f7-cba031b0ed53",
+      "name": "Send to Next Doctor"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Find Next Doctor').first().json.notify_patient_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2416,
+        -224
+      ],
+      "id": "6cac2685-ea9b-49be-ace2-450aab04e903",
+      "name": "Notify No Doctors"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cb = $('Parse Callback Data').first().json;\n\nconst answerBody = JSON.stringify({\n  callback_query_id: cb.callback_id,\n  text: 'Напишите вопрос для пациента'\n});\n\nconst editBody = JSON.stringify({\n  chat_id: cb.doctor_chat_id,\n  message_id: parseInt(cb.message_id),\n  text: `❓ Запрос дополнительной информации\\n\\n` +\n    `ID: ${cb.inquiry_id}\\n\\n` +\n    `Напишите вопрос, который нужно задать пациенту. ` +\n    `Следующее ваше текстовое сообщение будет переслано пациенту.`\n});\n\nreturn {\n  answer_body: answerBody,\n  edit_body: editBody,\n  doctor_chat_id: cb.doctor_chat_id,\n  inquiry_id: cb.inquiry_id\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        -512
+      ],
+      "id": "b4c66309-e024-40a1-8a22-3c97051ee763",
+      "name": "Build Request Info Response"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/answerCallbackQuery",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.answer_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1184,
+        -512
+      ],
+      "id": "ed576100-5704-43f5-8e00-050e6fd09e62",
+      "name": "Answer Callback Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/editMessageText",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Build Request Info Response').first().json.edit_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1392,
+        -512
+      ],
+      "id": "3e1bf96c-905e-4726-82c8-6f98f1d053e7",
+      "name": "Edit Message Request"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 605204595,
+          "mode": "list",
+          "cachedResultName": "Doctors",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=605204595"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "telegram_id": "={{ $('Build Request Info Response').first().json.doctor_chat_id }}",
+            "doctor_pending_inquiry_id": "={{ $('Build Request Info Response').first().json.inquiry_id }}"
+          },
+          "matchingColumns": [
+            "telegram_id"
+          ],
+          "schema": [
+            {
+              "id": "doctor_id",
+              "displayName": "doctor_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telegram_id",
+              "displayName": "telegram_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "specializations",
+              "displayName": "specializations",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "active_patients",
+              "displayName": "active_patients",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "max_patients",
+              "displayName": "max_patients",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "schedule_mon",
+              "displayName": "schedule_mon",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "schedule_tue",
+              "displayName": "schedule_tue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "schedule_wed",
+              "displayName": "schedule_wed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "schedule_thu",
+              "displayName": "schedule_thu",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "schedule_fri",
+              "displayName": "schedule_fri",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "schedule_sat",
+              "displayName": "schedule_sat",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "doctor_pending_inquiry_id",
+              "displayName": "doctor_pending_inquiry_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1600,
+        -512
+      ],
+      "id": "685a9be8-0a75-4989-a6f7-346cf542dded",
+      "name": "Set Doctor Pending",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1931181431,
+          "mode": "list",
+          "cachedResultName": "Inquiries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1931181431"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "inquiry_id",
+              "lookupValue": "={{ $json.pending_inquiry_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        880,
+        688
+      ],
+      "id": "eb9a51cd-6703-4280-bed4-ee1fb32b2532",
+      "name": "Get Inquiry for Doctor Question",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1141015070,
+          "mode": "list",
+          "cachedResultName": "Sessions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1141015070"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "telegram_user_id",
+              "lookupValue": "={{ $('Get Inquiry for Doctor Question').first().json.client_telegram_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1088,
+        688
+      ],
+      "id": "a1d4ead7-79be-42aa-864f-d23c4d47197b",
+      "name": "Get Patient Session",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $('Route: Doctor or Patient').first().json;\nconst inq = $('Get Inquiry for Doctor Question').first().json;\nconst sessions = $('Get Patient Session').all();\n\n// Находим активную сессию пациента\nconst activeSession = sessions.find(r => {\n  const stage = (r.json.stage || '').toLowerCase();\n  return r.json.session_id &&\n    stage !== 'emergency' &&\n    stage !== 'closed_by_new_start';\n});\n\nconst sessionId = activeSession ? activeSession.json.session_id : '';\nconst patientChatId = inq.client_telegram_id;\n\nconst sendBody = JSON.stringify({\n  chat_id: patientChatId,\n  text: `❓ Врач задаёт дополнительный вопрос:\\n\\n` +\n    `${route.question_text}\\n\\n` +\n    `Пожалуйста, ответьте — текстом, голосом или фото.`\n});\n\nconst confirmBody = JSON.stringify({\n  chat_id: route.chat_id,\n  text: `✅ Вопрос отправлен пациенту (${inq.client_name}). Ожидайте ответа.`\n});\n\nreturn {\n  send_body: sendBody,\n  confirm_body: confirmBody,\n  session_id: sessionId,\n  inquiry_id: route.pending_inquiry_id,\n  doctor_id: route.doctor_id,\n  doctor_chat_id: route.chat_id,\n  question_text: route.question_text\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        688
+      ],
+      "id": "f70afd7b-1388-4d58-a567-a2733e373699",
+      "name": "Build Doctor Question Forward"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.send_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1504,
+        688
+      ],
+      "id": "0c5f70a3-f87c-48a2-bb94-5232413a264f",
+      "name": "Send Question to Patient"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Build Doctor Question Forward').first().json.confirm_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1712,
+        688
+      ],
+      "id": "33aa6975-2d61-42ab-8c33-33232ed7669b",
+      "name": "Confirm to Doctor"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1141015070,
+          "mode": "list",
+          "cachedResultName": "Sessions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1141015070"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $('Build Doctor Question Forward').first().json.session_id }}",
+            "stage": "awaiting_doctor_clarification",
+            "awaiting_doctor_response": "TRUE",
+            "doctor_question_for_patient": "={{ $('Build Doctor Question Forward').first().json.question_text }}",
+            "updated_at": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [
+            "session_id"
+          ],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "telegram_user_id",
+              "displayName": "telegram_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_username",
+              "displayName": "client_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "language",
+              "displayName": "language",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "collected_data",
+              "displayName": "collected_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "awaiting_doctor_response",
+              "displayName": "awaiting_doctor_response",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "doctor_question_for_patient",
+              "displayName": "doctor_question_for_patient",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1504,
+        912
+      ],
+      "id": "7381685c-6314-4fec-b186-21c5876c4f1e",
+      "name": "Update Session Doctor Clarification",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 605204595,
+          "mode": "list",
+          "cachedResultName": "Doctors",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=605204595"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "telegram_id": "={{ $('Build Doctor Question Forward').first().json.doctor_chat_id }}"
+          },
+          "matchingColumns": [
+            "telegram_id"
+          ],
+          "schema": [
+            {
+              "id": "doctor_id",
+              "displayName": "doctor_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telegram_id",
+              "displayName": "telegram_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "specializations",
+              "displayName": "specializations",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "active_patients",
+              "displayName": "active_patients",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "max_patients",
+              "displayName": "max_patients",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "schedule_mon",
+              "displayName": "schedule_mon",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "schedule_tue",
+              "displayName": "schedule_tue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "schedule_wed",
+              "displayName": "schedule_wed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "schedule_thu",
+              "displayName": "schedule_thu",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "schedule_fri",
+              "displayName": "schedule_fri",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "schedule_sat",
+              "displayName": "schedule_sat",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "doctor_pending_inquiry_id",
+              "displayName": "doctor_pending_inquiry_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1920,
+        688
+      ],
+      "id": "2699c343-9e72-4c0c-8626-482ce638f642",
+      "name": "Clear Doctor Pending",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const session = $('Find Active Session').first().json;\nconst input = $('Route: Doctor or Patient').first().json;\n\n// Обновляем collected_data — добавляем ответ врачу\nlet collected = {};\ntry {\n  collected = JSON.parse(session.collected_data || '{}');\n} catch(e) {\n  collected = {};\n}\ncollected.doctor_clarification_answer = input.text;\n\n// Нужно найти doctor_id — берём из последнего assignment\n// Но у нас нет assignments тут. Используем данные из Sessions.\n// В Sessions нет doctor_chat_id, но мы можем найти через Inquiries → Assignments.\n// Проще: ищем inquiry по session_id, потом assignment.\n\nreturn {\n  session_id: session.session_id,\n  chat_id: session.chat_id,\n  client_name: session.client_name,\n  answer_text: input.text,\n  collected_data: JSON.stringify(collected),\n  voice_used: input.voice_used || 'FALSE',\n  photo_analysis: input.photo_analysis || ''\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        272
+      ],
+      "id": "d9c79a7c-94c0-41f3-86eb-8c0b3674d414",
+      "name": "Build Patient Answer Forward"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1931181431,
+          "mode": "list",
+          "cachedResultName": "Inquiries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1931181431"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "session_id",
+              "lookupValue": "={{ $json.session_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2368,
+        272
+      ],
+      "id": "b31620f0-8748-491d-a8f5-390af16cc814",
+      "name": "Get Inquiry for Answer",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1245674878,
+          "mode": "list",
+          "cachedResultName": "Assignments",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1245674878"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "inquiry_id",
+              "lookupValue": "={{ $('Get Inquiry for Answer').first().json.inquiry_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2576,
+        400
+      ],
+      "id": "3af27f7e-769a-4977-917c-09062d6f8c9f",
+      "name": "Get Last Assignment",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 605204595,
+          "mode": "list",
+          "cachedResultName": "Doctors",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=605204595"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "doctor_id",
+              "lookupValue": "={{ $('Get Last Assignment').last().json.doctor_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2768,
+        528
+      ],
+      "id": "8a0edefe-d996-4ecf-b951-9bd9aad8be18",
+      "name": "Get Doctor for Answer",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const answer = $('Build Patient Answer Forward').first().json;\nconst inq = $('Get Inquiry for Answer').first().json;\nconst doctor = $('Get Doctor for Answer').first().json;\n\nconst urgencyEmoji = { 'high': '🔴', 'medium': '🟡', 'low': '🟢' };\n\nconst text = `📋 Ответ пациента на ваш вопрос\\n\\n` +\n  `👤 Пациент: ${answer.client_name}\\n` +\n  `📁 Направление: ${inq.direction}\\n` +\n  `${urgencyEmoji[inq.urgency] || '⚪'} Срочность: ${inq.urgency}\\n\\n` +\n  `❓ Ваш вопрос:\\n${answer.answer_text ? '' : ''}` +\n  `Ответ пациента: ${answer.answer_text}\\n\\n` +\n  `📝 Описание:\\n${inq.summary}\\n\\n` +\n  `🔍 Ключевые симптомы: ${inq.key_symptoms}\\n\\n` +\n  `ID: ${inq.inquiry_id}`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '✅ Подтвердить приём', callback_data: `confirm_${inq.inquiry_id}` },\n      { text: '❓ Ещё вопрос', callback_data: `request_${inq.inquiry_id}` }\n    ],\n    [\n      { text: '🔄 Перенаправить', callback_data: `reassign_${inq.inquiry_id}` },\n      { text: '❌ Отклонить', callback_data: `decline_${inq.inquiry_id}` }\n    ]\n  ]\n};\n\nconst sendBody = JSON.stringify({\n  chat_id: doctor.telegram_id,\n  text: text,\n  reply_markup: keyboard\n});\n\nconst patientConfirmBody = JSON.stringify({\n  chat_id: answer.chat_id,\n  text: '✅ Ваш ответ передан врачу. Ожидайте решения.'\n});\n\nreturn {\n  send_body: sendBody,\n  patient_confirm_body: patientConfirmBody,\n  session_id: answer.session_id,\n  collected_data: answer.collected_data,\n  inquiry_id: inq.inquiry_id\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2976,
+        528
+      ],
+      "id": "3b6c75cd-913e-4928-b9ef-461bbc16f926",
+      "name": "Build Answer for Doctor"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.send_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3184,
+        528
+      ],
+      "id": "b5790e07-bbeb-454d-8c80-79f1c94c603f",
+      "name": "Send Answer to Doctor"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Build Answer for Doctor').first().json.patient_confirm_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3392,
+        528
+      ],
+      "id": "c71c021a-bf05-4b07-b0e8-bbb21d51af92",
+      "name": "Send Patient Answer Confirm"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1141015070,
+          "mode": "list",
+          "cachedResultName": "Sessions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1141015070"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $('Build Answer for Doctor').first().json.session_id }}",
+            "stage": "completed",
+            "collected_data": "={{ $('Build Answer for Doctor').first().json.collected_data }}",
+            "updated_at": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [
+            "session_id"
+          ],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "telegram_user_id",
+              "displayName": "telegram_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_username",
+              "displayName": "client_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "language",
+              "displayName": "language",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "collected_data",
+              "displayName": "collected_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "awaiting_doctor_response",
+              "displayName": "awaiting_doctor_response",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "doctor_question_for_patient",
+              "displayName": "doctor_question_for_patient",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3184,
+        768
+      ],
+      "id": "64a7eb8d-48d3-4011-8225-65ed78f3c95e",
+      "name": "Update Session After Answer",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1931181431,
+          "mode": "list",
+          "cachedResultName": "Inquiries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1931181431"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "inquiry_id": "={{ $json.inquiry_id }}",
+            "original_text": "={{ $json.collected_data }}"
+          },
+          "matchingColumns": [
+            "inquiry_id"
+          ],
+          "schema": [
+            {
+              "id": "inquiry_id",
+              "displayName": "inquiry_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_username",
+              "displayName": "client_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_telegram_id",
+              "displayName": "client_telegram_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "language",
+              "displayName": "language",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "direction",
+              "displayName": "direction",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "urgency",
+              "displayName": "urgency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "severity",
+              "displayName": "severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "key_symptoms",
+              "displayName": "key_symptoms",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "attention_points",
+              "displayName": "attention_points",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recommended_tests",
+              "displayName": "recommended_tests",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "original_text",
+              "displayName": "original_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "photo_analysis",
+              "displayName": "photo_analysis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "voice_used",
+              "displayName": "voice_used",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "is_returning",
+              "displayName": "is_returning",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "previous_inquiries",
+              "displayName": "previous_inquiries",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "feedback_score",
+              "displayName": "feedback_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "feedback_text",
+              "displayName": "feedback_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "feedback_sent",
+              "displayName": "feedback_sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2960,
+        768
+      ],
+      "id": "59e5931d-9507-445e-8669-70888f0c5e9e",
+      "name": "Update Inquiry with Answer",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/getFile?file_id={{ $('Check Input Type').first().json.file_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        624,
+        -176
+      ],
+      "id": "5e403492-b543-49e5-9d3f-730e4c0deb4e",
+      "name": "Get Voice File Info"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1248,
+        -176
+      ],
+      "id": "67c7ef32-ba75-4909-aa47-163f6423b9c6",
+      "name": "STT Gemini",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "4C5d0p0V8lQjELGV",
+          "name": "Gemini Direct"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Download and Build STT').first().json;\nlet transcript = '';\n\ntry {\n  // Gemini Direct API формат\n  const candidates = $json.candidates;\n  if (candidates && candidates[0]) {\n    transcript = candidates[0].content.parts[0].text || '';\n  }\n  transcript = transcript.replace(/```\\s*/g, '').trim();\n} catch(e) {\n  transcript = '[Не удалось распознать голосовое сообщение]';\n}\n\nreturn {\n  input_type: 'text',\n  text: transcript,\n  chat_id: input.chat_id,\n  user_name: input.user_name,\n  username: input.username,\n  voice_used: 'TRUE',\n  photo_analysis: ''\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        -176
+      ],
+      "id": "1183a7bd-911b-458a-8778-aa2316f964e6",
+      "name": "Set Unified Format Voice"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/getFile?file_id={{ $('Check Input Type').first().json.file_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        624,
+        -16
+      ],
+      "id": "139d13ef-90ae-4355-9a1c-412bcf1cd8a7",
+      "name": "Get Photo File Info"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Check Input Type').first().json;\nconst filePath = $json.result.file_path;\nconst photoUrl = `https://api.telegram.org/file/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/${filePath}`;\n\nconst requestBody = {\n  model: 'google/gemini-2.5-flash',\n  max_tokens: 500,\n  messages: [\n    {\n      role: 'system',\n      content: 'Ты — медицинский ассистент. Опиши что видишь на фото: если это кожное высыпание/травма — опиши внешний вид, локализацию, цвет, размер. Если это результат анализа или выписка — извлеки ключевые данные. Если фото не имеет медицинского смысла — скажи об этом. Отвечай кратко, структурированно. Не ставь диагноз.'\n    },\n    {\n      role: 'user',\n      content: [\n        {\n          type: 'image_url',\n          image_url: { url: photoUrl }\n        },\n        {\n          type: 'text',\n          text: input.caption || 'Опиши что видишь на этом фото'\n        }\n      ]\n    }\n  ]\n};\n\nreturn {\n  request_body: JSON.stringify(requestBody),\n  chat_id: input.chat_id,\n  user_name: input.user_name,\n  username: input.username\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        -16
+      ],
+      "id": "f4cd1cbb-822b-48f6-9cef-a8f3a1b39ec1",
+      "name": "Build Vision Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1040,
+        -16
+      ],
+      "id": "af67e336-5a0c-4ec2-9fce-3eeafc419c40",
+      "name": "Vision Gemini",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mP5T7DHPI4HKzCJm",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Build Vision Request').first().json;\nlet description = '';\n\ntry {\n  description = $json.choices[0].message.content || '';\n  description = description.replace(/```\\s*/g, '').trim();\n} catch(e) {\n  description = '[Не удалось обработать фото]';\n}\n\nreturn {\n  input_type: 'text',\n  text: '[Фото] ' + description,\n  chat_id: input.chat_id,\n  user_name: input.user_name,\n  username: input.username,\n  voice_used: 'FALSE',\n  photo_analysis: description\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        -16
+      ],
+      "id": "4e3b6314-d206-48b7-b11f-e5f66f40729b",
+      "name": "Set Unified Format Photo"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/file/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/{{ $json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        768,
+        -176
+      ],
+      "id": "75d1e12e-f792-430d-b14a-c599c4330cdf",
+      "name": "Download Voice File"
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "options": {
+          "encoding": "base64"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        928,
+        -176
+      ],
+      "id": "e901fb76-4dec-45ec-a620-c5d4f9e008f8",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Check Input Type').first().json;\nconst base64Audio = $json.data;\n\nconst requestBody = {\n  contents: [{\n    parts: [\n      {\n        text: 'Транскрибируй это аудиосообщение. Верни ТОЛЬКО текст того, что сказал человек. Без комментариев, без пояснений — только транскрипция.'\n      },\n      {\n        inlineData: {\n          mimeType: 'audio/ogg',\n          data: base64Audio\n        }\n      }\n    ]\n  }]\n};\n\nreturn {\n  request_body: JSON.stringify(requestBody),\n  chat_id: input.chat_id,\n  user_name: input.user_name,\n  username: input.username\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        -176
+      ],
+      "id": "f49df0e2-8a27-412b-a28c-f8ba081d162d",
+      "name": "Build STT Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Input Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Input Type": {
+      "main": [
+        [
+          {
+            "node": "Route Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Type": {
+      "main": [
+        [
+          {
+            "node": "Parse Callback Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Voice File Info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Photo File Info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Doctor Pending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Doctor Pending": {
+      "main": [
+        [
+          {
+            "node": "Route: Doctor or Patient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route: Doctor or Patient": {
+      "main": [
+        [
+          {
+            "node": "Switch Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Route": {
+      "main": [
+        [
+          {
+            "node": "Get Inquiry for Doctor Question",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lookup Returning Patient",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lookup Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Returning Patient": {
+      "main": [
+        [
+          {
+            "node": "Build New Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build New Session": {
+      "main": [
+        [
+          {
+            "node": "Create Session",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Switch Returning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Session": {
+      "main": [
+        []
+      ]
+    },
+    "Switch Returning": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome Back",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Session": {
+      "main": [
+        [
+          {
+            "node": "Find Active Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Active Session": {
+      "main": [
+        [
+          {
+            "node": "Switch Has Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Has Session": {
+      "main": [
+        [
+          {
+            "node": "Switch Route by Stage",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send No Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Route by Stage": {
+      "main": [
+        [
+          {
+            "node": "Get RAG Services",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get RAG Services",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Patient Answer Forward",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Completed Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get RAG Services": {
+      "main": [
+        [
+          {
+            "node": "Build Interviewer Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Interviewer Prompt": {
+      "main": [
+        [
+          {
+            "node": "LLM Interviewer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Interviewer": {
+      "main": [
+        [
+          {
+            "node": "Parse Interviewer Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Interviewer Response": {
+      "main": [
+        [
+          {
+            "node": "Switch Emergency or Sufficient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Emergency or Sufficient": {
+      "main": [
+        [
+          {
+            "node": "Update Session Emergency",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Final Analysis Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Session Gathering",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Session Gathering": {
+      "main": [
+        [
+          {
+            "node": "Send Next Question",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Session Emergency": {
+      "main": [
+        [
+          {
+            "node": "Send Emergency Patient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Emergency Patient": {
+      "main": [
+        [
+          {
+            "node": "Build Admin Emergency Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Admin Emergency Alert": {
+      "main": [
+        [
+          {
+            "node": "Send Admin Emergency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Final Analysis Prompt": {
+      "main": [
+        [
+          {
+            "node": "LLM Final Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Final Analysis": {
+      "main": [
+        [
+          {
+            "node": "Parse Final Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Final Analysis": {
+      "main": [
+        [
+          {
+            "node": "Save Inquiry",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Doctors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Inquiry": {
+      "main": [
+        [
+          {
+            "node": "Update Session Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Session Completed": {
+      "main": [
+        []
+      ]
+    },
+    "Get Doctors": {
+      "main": [
+        [
+          {
+            "node": "Match Doctor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Doctor": {
+      "main": [
+        [
+          {
+            "node": "Save Assignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Assignment": {
+      "main": [
+        [
+          {
+            "node": "Build Doctor Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Doctor Message": {
+      "main": [
+        [
+          {
+            "node": "Send to Doctor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Doctor": {
+      "main": [
+        [
+          {
+            "node": "Send Patient Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Callback Data": {
+      "main": [
+        [
+          {
+            "node": "Switch Callback Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Callback Action": {
+      "main": [
+        [
+          {
+            "node": "Get Inquiry for Confirm",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Request Info Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Inquiry for Reassign",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Inquiry for Reassign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Inquiry for Confirm": {
+      "main": [
+        [
+          {
+            "node": "Update Inquiry Confirmed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save Confirm Assignment",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Answer Callback Confirm",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Confirm Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Inquiry Confirmed": {
+      "main": [
+        []
+      ]
+    },
+    "Save Confirm Assignment": {
+      "main": [
+        []
+      ]
+    },
+    "Answer Callback Confirm": {
+      "main": [
+        []
+      ]
+    },
+    "Build Confirm Response": {
+      "main": [
+        [
+          {
+            "node": "Answer Callback Confirm1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Callback Confirm1": {
+      "main": [
+        [
+          {
+            "node": "Edit Message Confirm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Message Confirm": {
+      "main": [
+        [
+          {
+            "node": "Notify Patient Confirmed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Inquiry for Reassign": {
+      "main": [
+        [
+          {
+            "node": "Get All Assignments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Assignments": {
+      "main": [
+        [
+          {
+            "node": "Get Doctors for Reassign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Doctors for Reassign": {
+      "main": [
+        [
+          {
+            "node": "Find Next Doctor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Next Doctor": {
+      "main": [
+        [
+          {
+            "node": "Answer Callback Reassign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Callback Reassign": {
+      "main": [
+        [
+          {
+            "node": "Edit Message Reassign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Message Reassign": {
+      "main": [
+        [
+          {
+            "node": "Switch Found Next",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Found Next": {
+      "main": [
+        [
+          {
+            "node": "Send to Next Doctor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify No Doctors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Request Info Response": {
+      "main": [
+        [
+          {
+            "node": "Answer Callback Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Callback Request": {
+      "main": [
+        [
+          {
+            "node": "Edit Message Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Message Request": {
+      "main": [
+        [
+          {
+            "node": "Set Doctor Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Inquiry for Doctor Question": {
+      "main": [
+        [
+          {
+            "node": "Get Patient Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Patient Session": {
+      "main": [
+        [
+          {
+            "node": "Build Doctor Question Forward",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Doctor Question Forward": {
+      "main": [
+        [
+          {
+            "node": "Send Question to Patient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Question to Patient": {
+      "main": [
+        [
+          {
+            "node": "Confirm to Doctor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Session Doctor Clarification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm to Doctor": {
+      "main": [
+        [
+          {
+            "node": "Clear Doctor Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Patient Answer Forward": {
+      "main": [
+        [
+          {
+            "node": "Get Inquiry for Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Inquiry for Answer": {
+      "main": [
+        [
+          {
+            "node": "Get Last Assignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Last Assignment": {
+      "main": [
+        [
+          {
+            "node": "Get Doctor for Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Doctor for Answer": {
+      "main": [
+        [
+          {
+            "node": "Build Answer for Doctor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Answer for Doctor": {
+      "main": [
+        [
+          {
+            "node": "Send Answer to Doctor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Inquiry with Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Answer to Doctor": {
+      "main": [
+        [
+          {
+            "node": "Send Patient Answer Confirm",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Session After Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Patient Answer Confirm": {
+      "main": [
+        []
+      ]
+    },
+    "Get Voice File Info": {
+      "main": [
+        [
+          {
+            "node": "Download Voice File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STT Gemini": {
+      "main": [
+        [
+          {
+            "node": "Set Unified Format Voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Photo File Info": {
+      "main": [
+        [
+          {
+            "node": "Build Vision Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Vision Request": {
+      "main": [
+        [
+          {
+            "node": "Vision Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vision Gemini": {
+      "main": [
+        [
+          {
+            "node": "Set Unified Format Photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Unified Format Photo": {
+      "main": [
+        [
+          {
+            "node": "Check Doctor Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Unified Format Voice": {
+      "main": [
+        [
+          {
+            "node": "Check Doctor Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Voice File": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Build STT Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build STT Request": {
+      "main": [
+        [
+          {
+            "node": "STT Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "d506acfa-9b8f-44b1-ab20-f4c1efb50c13",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7336350515be8065f9e6f16c44aebd7540c1ed731f4d604c5a4d9b68a55dfd93"
+  },
+  "nodeGroups": [],
+  "id": "XCjEoVjMILvKll50",
+  "tags": []
+}

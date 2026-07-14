@@ -1,0 +1,507 @@
+{
+  "name": "МедСорт: Feedback Collector",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "80e36deb-2a88-469a-89a8-6e6aa355a691",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1931181431,
+          "mode": "list",
+          "cachedResultName": "Inquiries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1931181431"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        0
+      ],
+      "id": "72aea320-8e4b-4877-8a75-23fc26b2fa77",
+      "name": "Get Confirmed Inquiries",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $('Get Confirmed Inquiries').all();\nconst now = new Date();\n\nconst ready = rows.filter(r => {\n  if (!r.json.inquiry_id) return false;\n  if (r.json.status !== 'confirmed') return false;\n  if (r.json.feedback_sent === 'TRUE') return false;\n  \n  // Проверяем что прошло больше 24 часов\n  const created = new Date(r.json.created_at);\n  const hours = (now - created) / (1000 * 60 * 60);\n  return hours >= 24;\n});\n\nif (ready.length === 0) {\n  return { has_items: false };\n}\n\nreturn ready.map(r => ({\n  has_items: true,\n  inquiry_id: r.json.inquiry_id,\n  client_name: r.json.client_name,\n  client_telegram_id: r.json.client_telegram_id,\n  direction: r.json.direction,\n  language: r.json.language || 'ru'\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "eec12f55-6d7a-4659-a67d-15c983c1252b",
+      "name": "Filter Ready for Feedback"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.has_items }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "e2443dbf-1388-4f3e-8530-83d89aaa1f9a"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "true"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        624,
+        0
+      ],
+      "id": "3f90638f-027a-4cca-b1f2-60af7c1a5880",
+      "name": "Switch Has Items",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json;\n\nconst text = d.language === 'en'\n  ? `Hello, ${d.client_name}! You recently visited our clinic (${d.direction}). How was your experience? Please rate from 1 to 5, where 1 is poor and 5 is excellent.`\n  : `Здравствуйте, ${d.client_name}! Вы недавно обращались в нашу клинику (${d.direction}). Как прошёл приём? Оцените от 1 до 5, где 1 — плохо, 5 — отлично.`;\n\nconst sendBody = JSON.stringify({\n  chat_id: d.client_telegram_id,\n  text: text\n});\n\nreturn {\n  send_body: sendBody,\n  inquiry_id: d.inquiry_id\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        -96
+      ],
+      "id": "3637e756-b8c2-462a-b0a6-4c28fe38643d",
+      "name": "Build Feedback Message"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.send_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1040,
+        -96
+      ],
+      "id": "c0330149-11be-4655-8fd8-bc0daee61092",
+      "name": "Send Feedback Request"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1931181431,
+          "mode": "list",
+          "cachedResultName": "Inquiries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1931181431"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "inquiry_id": "={{ $('Build Feedback Message').first().json.inquiry_id }}",
+            "feedback_sent": "TRUE"
+          },
+          "matchingColumns": [
+            "inquiry_id"
+          ],
+          "schema": [
+            {
+              "id": "inquiry_id",
+              "displayName": "inquiry_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_username",
+              "displayName": "client_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_telegram_id",
+              "displayName": "client_telegram_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "language",
+              "displayName": "language",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "direction",
+              "displayName": "direction",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "urgency",
+              "displayName": "urgency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "severity",
+              "displayName": "severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "key_symptoms",
+              "displayName": "key_symptoms",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "attention_points",
+              "displayName": "attention_points",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recommended_tests",
+              "displayName": "recommended_tests",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "original_text",
+              "displayName": "original_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "photo_analysis",
+              "displayName": "photo_analysis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "voice_used",
+              "displayName": "voice_used",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "is_returning",
+              "displayName": "is_returning",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "previous_inquiries",
+              "displayName": "previous_inquiries",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "feedback_score",
+              "displayName": "feedback_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "feedback_text",
+              "displayName": "feedback_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "feedback_sent",
+              "displayName": "feedback_sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1248,
+        -96
+      ],
+      "id": "0796f3f0-2c1c-4ac3-8001-1f50f87b5290",
+      "name": "Mark Feedback Sent",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Confirmed Inquiries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Confirmed Inquiries": {
+      "main": [
+        [
+          {
+            "node": "Filter Ready for Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Ready for Feedback": {
+      "main": [
+        [
+          {
+            "node": "Switch Has Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Has Items": {
+      "main": [
+        [
+          {
+            "node": "Build Feedback Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Feedback Message": {
+      "main": [
+        [
+          {
+            "node": "Send Feedback Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Feedback Request": {
+      "main": [
+        [
+          {
+            "node": "Mark Feedback Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "42bb6bb7-8cc1-47a9-86f9-0c92a3031abc",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7336350515be8065f9e6f16c44aebd7540c1ed731f4d604c5a4d9b68a55dfd93"
+  },
+  "nodeGroups": [],
+  "id": "spObINKEDa6nAtdM",
+  "tags": []
+}

@@ -1,0 +1,374 @@
+{
+  "name": "03 — Urban Thread: Support Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "728d9858-6e61-488a-b688-93a76d8c67f1",
+      "name": "Telegram Trigger",
+      "webhookId": "a372bec8-622d-4ece-87a6-4b5c69435469",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q",
+          "mode": "list",
+          "cachedResultName": "Urban Thread",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Orders",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "chat_id",
+              "lookupValue": "={{ $json.message.chat.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        0
+      ],
+      "id": "a4034b5c-4a3d-48b1-973e-be988b36f625",
+      "name": "Get Orders",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q",
+          "mode": "list",
+          "cachedResultName": "Urban Thread",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 768595887,
+          "mode": "list",
+          "cachedResultName": "Chat Memory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q/edit#gid=768595887"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "chat_id",
+              "lookupValue": "={{ $('Telegram Trigger').first().json.message.chat.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        416,
+        0
+      ],
+      "id": "d8acd45e-2258-492d-9a99-354b33d339b4",
+      "name": "Get History",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Данные из Telegram Trigger\nconst chatId = $('Telegram Trigger').first().json.message.chat.id;\nconst userName = $('Telegram Trigger').first().json.message.from.first_name || 'клиент';\nconst userMessage = $('Telegram Trigger').first().json.message.text || '';\n\n// Заказы клиента из Get Orders\nconst ordersRaw = $('Get Orders').all().map(item => item.json);\nlet ordersData = 'Заказов не найдено.';\n\nif (ordersRaw.length > 0 && !ordersRaw[0]._skip) {\n  ordersData = ordersRaw.map(o =>\n    `Заказ ${o.order_id} | Статус: ${o.status} | Состав: ${o.items} | Сумма: ${o.total}₽ | Трек: ${o.tracking || 'нет'} | Создан: ${o.created_at} | Адрес: ${o.address}`\n  ).join('\\n');\n}\n\n// История диалога из Get History\nconst historyRaw = $('Get History').all().map(item => item.json).filter(h => h.role && h.content);\nconst messages = [];\n\n// System prompt\nconst systemPrompt = `Ты — бот поддержки интернет-магазина одежды URBAN THREAD.\n\nПРАВИЛА:\n- Обращайся на «ты», дружелюбно, но без панибратства\n- Отвечай кратко: 1–3 предложения\n- Максимум 1 эмодзи на сообщение (📦, ✅, 👕)\n- Данные заказа — только из раздела ЗАКАЗЫ КЛИЕНТА ниже. Не выдумывай\n- Если вопрос вне твоих сценариев — «Передам вопрос менеджеру, он ответит в рабочее время (пн–пт 10:00–19:00)»\n- Не принимай оплату, не меняй адрес — только фиксируй запрос\n- Up-sell: максимум 1 предложение за диалог, только если уместно\n- Если клиент злится — извинись коротко, предложи связь с менеджером\n\nСТАТУСЫ:\n- processing: заказ собирается на складе, отправка 1–2 рабочих дня\n- shipped: отправлен, можно отследить по трек-номеру на сайте СДЭК\n- delivered: доставлен\n- return_requested: заявка на возврат принята, менеджер свяжется в течение 24ч\n- return_done: возврат оформлен, деньги вернутся на карту за 3–5 рабочих дней\n\nВОЗВРАТ:\n- Только если статус = delivered\n- В течение 14 дней с получения\n- Товар не ношен, бирки на месте\n- Брак — возврат за счёт магазина\n\nFAQ:\n- Оплата: карта (Visa/MC/МИР), СБП, наличные при получении\n- Доставка: СДЭК, 2–5 дней Москва, 3–7 дней РФ. Бесплатно от 5000₽, иначе 350₽\n- Размеры: S 44–46, M 48–50, L 52–54, XL 56–58\n- Поддержка: бот 24/7, менеджер пн–пт 10:00–19:00 МСК\n- Каталог: urbanthread.ru\n\nЗАКАЗЫ КЛИЕНТА:\n${ordersData}\n\nЕсли заказов нет — скажи, что не нашёл заказов по этому аккаунту, и предложи назвать номер заказа или связаться с менеджером.`;\n\nmessages.push({ role: 'system', content: systemPrompt });\n\n// Добавляем историю (последние 20 сообщений)\nconst recentHistory = historyRaw.slice(-20);\nfor (const h of recentHistory) {\n  messages.push({ role: h.role, content: h.content });\n}\n\n// Добавляем новое сообщение пользователя\nmessages.push({ role: 'user', content: userMessage });\n\nreturn [{\n  json: {\n    chat_id: chatId,\n    user_name: userName,\n    user_message: userMessage,\n    messages,\n    request_body: JSON.stringify({\n      model: \"deepseek-chat\",\n      messages: messages,\n      response_format: { type: \"text\" }\n    })\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "8fe492ce-22e6-4b64-a04a-a5fc9421078e",
+      "name": "Build Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        832,
+        0
+      ],
+      "id": "c5304348-1452-47b4-a2ca-8890ea0d41d3",
+      "name": "DeepSeek",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mP5T7DHPI4HKzCJm",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Build Prompt').first().json.chat_id }}",
+        "text": "={{ $json.choices[0].message.content }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "5be7e73d-26f0-4f2b-b3cc-b684e392c3a6",
+      "name": "Reply",
+      "webhookId": "e778da73-f565-432b-b1d3-dc5a2f138ebd",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const chatId = $('Build Prompt').first().json.chat_id;\nconst userMessage = $('Build Prompt').first().json.user_message;\nconst assistantMessage = $('DeepSeek').first().json.choices[0].message.content;\nconst now = new Date().toISOString();\n\nreturn [\n  {\n    json: {\n      chat_id: chatId,\n      role: 'user',\n      content: userMessage,\n      timestamp: now\n    }\n  },\n  {\n    json: {\n      chat_id: chatId,\n      role: 'assistant',\n      content: assistantMessage,\n      timestamp: now\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        0
+      ],
+      "id": "ab09a8ce-319c-4379-b765-10c6f472cc44",
+      "name": "Save History"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q",
+          "mode": "list",
+          "cachedResultName": "Urban Thread",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 768595887,
+          "mode": "list",
+          "cachedResultName": "Chat Memory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q/edit#gid=768595887"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $json.chat_id }}",
+            "role": "={{ $json.role }}",
+            "content": "={{ $json.content }}",
+            "timestamp": "={{ $json.timestamp }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "content",
+              "displayName": "content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1456,
+        0
+      ],
+      "id": "e1f19848-c16c-481f-b81a-c39c53721dce",
+      "name": "Append History",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Orders": {
+      "main": [
+        [
+          {
+            "node": "Get History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get History": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "DeepSeek",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek": {
+      "main": [
+        [
+          {
+            "node": "Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply": {
+      "main": [
+        [
+          {
+            "node": "Save History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save History": {
+      "main": [
+        [
+          {
+            "node": "Append History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "ae766d3e-a3fd-4924-8e71-ee5c2b98c612",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7336350515be8065f9e6f16c44aebd7540c1ed731f4d604c5a4d9b68a55dfd93"
+  },
+  "nodeGroups": [],
+  "id": "ti7jW1SmDzQoWwdP",
+  "tags": []
+}

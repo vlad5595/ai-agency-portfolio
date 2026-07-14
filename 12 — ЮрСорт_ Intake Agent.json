@@ -1,0 +1,3196 @@
+{
+  "name": "12 — ЮрСорт: Intake Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "faefaf6e-5364-4084-984c-a7e51b97ee09",
+      "name": "Telegram Trigger",
+      "webhookId": "e881bb51-3868-410d-af22-8b52807708cb",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message?.text ? 'true' : '' }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    },
+                    "id": "58d5277d-9332-42d0-b93a-2de5d14d8061"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "51fea962-df96-4d34-a914-9693b04621d7",
+                    "leftValue": "={{ $json.callback_query?.data ? 'true' : '' }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "callback"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "f890bc84-3daf-486b-a997-fe6663936251",
+      "name": "Route Type"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={   \"chat_id\": {{ $('Telegram Trigger').first().json.message?.chat?.id || $('Telegram Trigger').first().json.callback_query?.message?.chat?.id }},   \"text\": \"Пожалуйста, опишите вашу ситуацию текстом. Фото и другие файлы не обрабатываются.\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        208
+      ],
+      "id": "d786afc3-bdc4-4317-9fb6-c3bf50412a29",
+      "name": "Send Fallback Reply"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $('Telegram Trigger').first().json.message.text.trim();\nconst chatId = $('Telegram Trigger').first().json.message.chat.id;\nconst firstName = $('Telegram Trigger').first().json.message.from.first_name || '';\nconst username = $('Telegram Trigger').first().json.message.from.username || '';\n\nreturn [{\n  json: {\n    chat_id: chatId,\n    text: text,\n    first_name: firstName,\n    username: username,\n    is_start: text === '/start' ? 'yes' : 'no'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        16
+      ],
+      "id": "6d9326fe-c8bb-469e-a6f1-c9198f8f1d12",
+      "name": "Check Message Type"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.is_start }}",
+                    "rightValue": "yes",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "e86df871-90d2-42b9-8f72-bee07ff61353"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "start"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "4bbad7ab-263d-4d51-80f8-93643d00a1a1",
+                    "leftValue": "={{ $json.is_start }}",
+                    "rightValue": "no",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "message"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        592,
+        16
+      ],
+      "id": "944f0d6c-b827-486f-91c4-e17ac7d2003f",
+      "name": "Start or Text"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={   \"chat_id\": {{ $json.chat_id }},   \"text\": \"⚖️ Юридический помощник фирмы «Правовой Компас»\\n\\n👋 Здравствуйте, {{ $json.first_name }}!\\n\\nЯ помогу передать вашу ситуацию нужному специалисту.\\n\\n⚠️ Бот НЕ даёт юридических консультаций — только принимает и сортирует обращения.\\n\\n📝 Опишите вашу ситуацию своими словами — что произошло, что вас беспокоит.\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        800,
+        -80
+      ],
+      "id": "e5d66c8e-ea07-4f13-9632-ee9e8d2793af",
+      "name": "Send Welcome"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');\nconst seq = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');\nconst sessionId = `SS-${dateStr}-${seq}`;\n\nconst input = $('Check Message Type').first().json;\n\nreturn [{\n  json: {\n    session_id: sessionId,\n    telegram_user_id: String(input.chat_id),\n    client_name: input.first_name,\n    client_username: input.username,\n    stage: 'awaiting_situation',\n    collected_data: JSON.stringify({}),\n    created_at: now.toISOString(),\n    updated_at: now.toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        -80
+      ],
+      "id": "b52bf07e-628a-4f3f-8a03-f62b5547756d",
+      "name": "Build New Session"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA",
+          "mode": "list",
+          "cachedResultName": "ЮрСорт — Обращения",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1662016298,
+          "mode": "list",
+          "cachedResultName": "Sessions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit#gid=1662016298"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telegram_user_id",
+              "displayName": "telegram_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_username",
+              "displayName": "client_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "collected_data",
+              "displayName": "collected_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1216,
+        -80
+      ],
+      "id": "53f8f471-6d97-4cc5-85ea-803e2b05c0a9",
+      "name": "Create Session",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA",
+          "mode": "list",
+          "cachedResultName": "ЮрСорт — Обращения",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1662016298,
+          "mode": "list",
+          "cachedResultName": "Sessions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit#gid=1662016298"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "telegram_user_id",
+              "lookupValue": "={{ $json.chat_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        800,
+        112
+      ],
+      "id": "444323ea-2fcf-405c-9cc7-1ba86a94de3e",
+      "name": "Lookup Session",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Check Message Type').first().json;\nconst rows = $('Lookup Session').all().map(i => i.json);\nconst validRows = rows.filter(r => r.session_id);\n\nconst active = validRows.find(r =>\n  String(r.telegram_user_id) === String(input.chat_id) &&\n  r.stage !== 'completed'\n);\n\nif (!active) {\n  return [{ json: { has_session: 'no', chat_id: input.chat_id } }];\n}\n\nlet collected = {};\ntry {\n  collected = JSON.parse(active.collected_data || '{}');\n} catch(e) {\n  collected = {};\n}\n\nreturn [{\n  json: {\n    has_session: 'yes',\n    session_id: active.session_id,\n    stage: active.stage,\n    collected_data: collected,\n    chat_id: input.chat_id,\n    text: input.text,\n    first_name: input.first_name,\n    username: input.username,\n    row_number: active.row_number\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        112
+      ],
+      "id": "277b374b-7bb5-4396-a4de-387c08eda092",
+      "name": "Find Active Session"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.has_session }}",
+                    "rightValue": "no",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "836b829d-2778-43d0-b45c-b336d2d4d618"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "no_session"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "321e6eae-2b1d-4d66-a074-bfd858f3e296",
+                    "leftValue": "={{ $json.has_session }}",
+                    "rightValue": "yes",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "has_session"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1216,
+        112
+      ],
+      "id": "bc3d9252-113a-4703-9209-5a72c22eb568",
+      "name": "Has Session"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={   \"chat_id\": {{ $json.chat_id }},   \"text\": \"Для начала нажмите /start\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1424,
+        16
+      ],
+      "id": "5635e587-4d7c-4270-a8cd-8007c0356b09",
+      "name": "Send No Session Reply"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.stage }}",
+                    "rightValue": "awaiting_situation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a29772a5-45ef-46a8-99be-930bc7fbd196"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "situation"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "6c74f05a-654f-4696-a6c5-b1f87d0b6835",
+                    "leftValue": "={{ $json.stage }}",
+                    "rightValue": "awaiting_clarification_1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "clarification"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ddb94ca2-14b9-4c71-8510-3c9ad3686177",
+                    "leftValue": "={{ $json.stage }}",
+                    "rightValue": "awaiting_clarification_2",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "clarification"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1424,
+        208
+      ],
+      "id": "04b25268-10b8-479d-a02f-459aa23e3c48",
+      "name": "Route by Stage"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Find Active Session').first().json;\nconst situation = input.text;\n\nconst collected = input.collected_data || {};\ncollected.situation = situation;\n\nconst prompt = `Ты — ассистент юридической фирмы. Клиент описал свою ситуацию. Твоя задача — оценить, достаточно ли информации для классификации обращения.\n\nСитуация клиента:\n\"${situation}\"\n\nПроанализируй и ответь строго в JSON:\n{\n  \"needs_clarification\": true/false,\n  \"clarification_questions\": [\"вопрос 1\", \"вопрос 2\"],\n  \"reasoning\": \"почему нужны/не нужны уточнения\"\n}\n\nПравила:\n- needs_clarification = true, если не хватает ключевых фактов для определения типа дела, срочности или сложности\n- Максимум 2 вопроса, короткие и конкретные\n- Примеры уточнений: наличие судебной повестки, сроки давности, сумма спора, есть ли договор, количество сторон\n- Если ситуация описана достаточно подробно — ставь false, не задавай вопросы ради вопросов\n- Отвечай строго JSON, без markdown-обёрток`;\n\nconst requestBody = JSON.stringify({\n  model: 'deepseek-v4-flash',\n  temperature: 0,\n  response_format: { type: 'json_object' },\n  messages: [\n    { role: 'system', content: 'Ты — JSON-генератор. Отвечай только валидным JSON без обёрток.' },\n    { role: 'user', content: prompt }\n  ]\n});\n\nreturn [{\n  json: {\n    chat_id: input.chat_id,\n    session_id: input.session_id,\n    row_number: input.row_number,\n    first_name: input.first_name,\n    username: input.username,\n    collected_data: collected,\n    request_body: requestBody\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        96
+      ],
+      "id": "3cfe6de4-2606-4c5b-b96e-42eead87d68c",
+      "name": "Build LLM Assessment"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sk-4c08d8ac92714bf9a6212cbc60ae0d14"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1840,
+        96
+      ],
+      "id": "752627be-a716-4bd2-8265-a9776a445a01",
+      "name": "LLM Assessment"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Build LLM Assessment').first().json;\nconst raw = $('LLM Assessment').first().json.choices[0].message.content;\n\nlet parsed;\ntry {\n  const clean = raw.replace(/```json|```/g, '').trim();\n  parsed = JSON.parse(clean);\n} catch(e) {\n  parsed = { needs_clarification: false, clarification_questions: [], reasoning: 'parse error' };\n}\n\nreturn [{\n  json: {\n    chat_id: input.chat_id,\n    session_id: input.session_id,\n    row_number: input.row_number,\n    first_name: input.first_name,\n    username: input.username,\n    collected_data: input.collected_data,\n    needs_clarification: parsed.needs_clarification ? 'yes' : 'no',\n    questions: parsed.clarification_questions || [],\n    reasoning: parsed.reasoning || ''\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        96
+      ],
+      "id": "a12e7fce-f174-4b47-8440-9cc4c26f41f1",
+      "name": "Parse Assessment"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.needs_clarification }}",
+                    "rightValue": "yes",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "d37e0633-0bea-4f59-8135-497151f97336"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "clarify"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a92dd636-c892-4f9a-b71c-1f2e5616a618",
+                    "leftValue": "={{ $json.needs_clarification }}",
+                    "rightValue": "no",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "finalize"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2256,
+        96
+      ],
+      "id": "f32dbacf-6b4a-4007-87a3-625b98b9b115",
+      "name": "Needs Clarification"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Parse Assessment').first().json;\nconst questions = input.questions;\n\nlet text = '🔍 Чтобы точнее направить ваше обращение, уточните, пожалуйста:\\n\\n';\nquestions.forEach((q, i) => {\n  text += `${i + 1}. ${q}\\n`;\n});\ntext += '\\nОтветьте одним сообщением.';\n\nconst sendBody = JSON.stringify({\n  chat_id: input.chat_id,\n  text: text\n});\n\nreturn [{\n  json: {\n    chat_id: input.chat_id,\n    session_id: input.session_id,\n    row_number: input.row_number,\n    first_name: input.first_name,\n    username: input.username,\n    collected_data: input.collected_data,\n    reply_text: text,\n    new_stage: 'awaiting_clarification_1',\n    send_body: sendBody\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        0
+      ],
+      "id": "bae16a6e-9b2d-4762-a5b0-2bddf1a7f0f6",
+      "name": "Build Clarification Message"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA",
+          "mode": "list",
+          "cachedResultName": "ЮрСорт — Обращения",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1662016298,
+          "mode": "list",
+          "cachedResultName": "Sessions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit#gid=1662016298"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $json.row_number }}",
+            "stage": "={{ $json.new_stage }}",
+            "collected_data": "={{ JSON.stringify($json.collected_data) }}",
+            "updated_at": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telegram_user_id",
+              "displayName": "telegram_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_username",
+              "displayName": "client_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "collected_data",
+              "displayName": "collected_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2672,
+        0
+      ],
+      "id": "ee42491d-e149-456d-9b7c-8f01eba7c7ec",
+      "name": "Update Session Clarify",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Build Clarification Message').first().json.send_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2880,
+        0
+      ],
+      "id": "b106d16f-fb21-4b58-985d-e2650e334a25",
+      "name": "Send Clarification"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Find Active Session').first().json;\nconst answer = input.text;\n\nconst collected = input.collected_data || {};\nif (input.stage === 'awaiting_clarification_1') {\n  collected.clarification_1 = answer;\n} else {\n  collected.clarification_2 = answer;\n}\n\nconst contextParts = [];\nif (collected.situation) contextParts.push(`Описание ситуации: \"${collected.situation}\"`);\nif (collected.clarification_1) contextParts.push(`Ответ на уточнения: \"${collected.clarification_1}\"`);\nif (collected.clarification_2) contextParts.push(`Дополнительные уточнения: \"${collected.clarification_2}\"`);\n\nconst prompt = `Ты — ассистент юридической фирмы. Проанализируй обращение клиента и классифицируй его.\n\n${contextParts.join('\\n')}\n\nОтветь строго в JSON:\n{\n  \"case_type\": \"family|labor|property|corporate|consumer|other\",\n  \"urgency\": \"low|medium|high\",\n  \"complexity\": \"low|medium|high\",\n  \"summary\": \"2-3 предложения — суть ситуации\",\n  \"key_facts\": [\"факт 1\", \"факт 2\", \"факт 3\"],\n  \"attention_points\": \"на что обратить внимание юристу (сроки, риски, особенности)\"\n}\n\nПравила:\n- case_type: family (развод, алименты, опека), labor (увольнение, зарплата, трудовой спор), property (недвижимость, наследство, раздел имущества), corporate (регистрация, договоры между компаниями), consumer (возврат товара, некачественная услуга), other (не подходит ни одна)\n- urgency high: есть судебная повестка, истекают сроки, угроза потери имущества/прав\n- urgency medium: ситуация развивается, но нет немедленной угрозы\n- urgency low: консультативный вопрос, нет сроков\n- complexity high: несколько сторон, крупная сумма, судебное разбирательство\n- complexity medium: спор между двумя сторонами, средняя сумма\n- complexity low: типовая ситуация, консультация\n- summary на русском языке\n- key_facts — массив строк, 2-5 фактов\n- Строго JSON без обёрток`;\n\nconst requestBody = JSON.stringify({\n  model: 'deepseek-v4-flash',\n  temperature: 0,\n  response_format: { type: 'json_object' },\n  messages: [\n    { role: 'system', content: 'Ты — JSON-генератор. Отвечай только валидным JSON без обёрток.' },\n    { role: 'user', content: prompt }\n  ]\n});\n\nreturn [{\n  json: {\n    chat_id: input.chat_id,\n    session_id: input.session_id,\n    row_number: input.row_number,\n    first_name: input.first_name,\n    username: input.username,\n    collected_data: collected,\n    original_text: contextParts.join(' | '),\n    request_body: requestBody\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        336
+      ],
+      "id": "ec224ed5-abea-4b47-8715-5ca206172bb2",
+      "name": "Process Clarification"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Parse Assessment').first().json;\nconst collected = input.collected_data || {};\n\nconst contextParts = [];\nif (collected.situation) contextParts.push(`Описание ситуации: \"${collected.situation}\"`);\n\nconst prompt = `Ты — ассистент юридической фирмы. Проанализируй обращение клиента и классифицируй его.\n\n${contextParts.join('\\n')}\n\nОтветь строго в JSON:\n{\n  \"case_type\": \"family|labor|property|corporate|consumer|other\",\n  \"urgency\": \"low|medium|high\",\n  \"complexity\": \"low|medium|high\",\n  \"summary\": \"2-3 предложения — суть ситуации\",\n  \"key_facts\": [\"факт 1\", \"факт 2\", \"факт 3\"],\n  \"attention_points\": \"на что обратить внимание юристу (сроки, риски, особенности)\"\n}\n\nПравила:\n- case_type: family (развод, алименты, опека), labor (увольнение, зарплата, трудовой спор), property (недвижимость, наследство, раздел имущества), corporate (регистрация, договоры между компаниями), consumer (возврат товара, некачественная услуга), other (не подходит ни одна)\n- urgency high: есть судебная повестка, истекают сроки, угроза потери имущества/прав\n- urgency medium: ситуация развивается, но нет немедленной угрозы\n- urgency low: консультативный вопрос, нет сроков\n- complexity high: несколько сторон, крупная сумма, судебное разбирательство\n- complexity medium: спор между двумя сторонами, средняя сумма\n- complexity low: типовая ситуация, консультация\n- summary на русском языке\n- key_facts — массив строк, 2-5 фактов\n- Строго JSON без обёрток`;\n\nconst requestBody = JSON.stringify({\n  model: 'deepseek-v4-flash',\n  temperature: 0,\n  response_format: { type: 'json_object' },\n  messages: [\n    { role: 'system', content: 'Ты — JSON-генератор. Отвечай только валидным JSON без обёрток.' },\n    { role: 'user', content: prompt }\n  ]\n});\n\nreturn [{\n  json: {\n    chat_id: input.chat_id,\n    session_id: input.session_id,\n    row_number: input.row_number,\n    first_name: input.first_name,\n    username: input.username,\n    collected_data: collected,\n    original_text: collected.situation || '',\n    request_body: requestBody\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        192
+      ],
+      "id": "a63e2abc-7f18-48b9-8276-bf98450e1c41",
+      "name": "Build Final Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sk-4c08d8ac92714bf9a6212cbc60ae0d14"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $input.first().json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2128,
+        448
+      ],
+      "id": "f74d0b37-4240-4858-8482-f6039f84da5c",
+      "name": "LLM Final Analysis"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $('LLM Final Analysis').first().json.choices[0].message.content;\n\n// Находим источник данных (одна из двух нод сработала)\nlet inputData = {};\ntry {\n  const d = $('Process Clarification').first().json;\n  if (d && d.session_id) inputData = d;\n} catch(e) {}\nif (!inputData.session_id) {\n  try {\n    const d = $('Build Final Prompt').first().json;\n    if (d && d.session_id) inputData = d;\n  } catch(e) {}\n}\n\nlet parsed;\ntry {\n  const clean = raw.replace(/```json|```/g, '').trim();\n  parsed = JSON.parse(clean);\n} catch(e) {\n  parsed = {\n    case_type: 'other', urgency: 'medium', complexity: 'medium',\n    summary: 'Не удалось обработать автоматически',\n    key_facts: [], attention_points: 'Требуется ручной разбор'\n  };\n}\n\nconst now = new Date();\nconst dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');\nconst seq = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');\n\nreturn [{\n  json: {\n    inquiry_id: `LS-${dateStr}-${seq}`,\n    date: now.toISOString().slice(0, 10),\n    session_id: inputData.session_id || '',\n    client_name: inputData.first_name || '',\n    client_username: inputData.username || '',\n    client_telegram_id: String(inputData.chat_id || ''),\n    case_type: parsed.case_type,\n    urgency: parsed.urgency,\n    complexity: parsed.complexity,\n    summary: parsed.summary,\n    key_facts: Array.isArray(parsed.key_facts) ? parsed.key_facts.join('; ') : String(parsed.key_facts),\n    attention_points: parsed.attention_points || '',\n    original_text: inputData.original_text || '',\n    status: 'new',\n    created_at: now.toISOString(),\n    chat_id: inputData.chat_id,\n    row_number: inputData.row_number,\n    collected_data: inputData.collected_data\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2336,
+        448
+      ],
+      "id": "78a5f7ed-4905-4811-8374-2edba9e64ecc",
+      "name": "Parse Final Analysis"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA",
+          "mode": "list",
+          "cachedResultName": "ЮрСорт — Обращения",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 56345580,
+          "mode": "list",
+          "cachedResultName": "Inquiries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit#gid=56345580"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "inquiry_id",
+              "displayName": "inquiry_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_username",
+              "displayName": "client_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_telegram_id",
+              "displayName": "client_telegram_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "case_type",
+              "displayName": "case_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "urgency",
+              "displayName": "urgency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "complexity",
+              "displayName": "complexity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "key_facts",
+              "displayName": "key_facts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "attention_points",
+              "displayName": "attention_points",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "original_text",
+              "displayName": "original_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2544,
+        448
+      ],
+      "id": "c743ccfe-27c9-4910-9db5-db13ccf9715f",
+      "name": "Save Inquiry",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA",
+          "mode": "list",
+          "cachedResultName": "ЮрСорт — Обращения",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1662016298,
+          "mode": "list",
+          "cachedResultName": "Sessions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit#gid=1662016298"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('Parse Final Analysis').first().json.row_number }}",
+            "stage": "completed",
+            "collected_data": "={{ JSON.stringify($('Parse Final Analysis').first().json.collected_data) }}",
+            "updated_at": "={{ new Date().toISOString() }}",
+            "session_id": "={{ $('Parse Final Analysis').first().json.session_id }}"
+          },
+          "matchingColumns": [
+            "session_id"
+          ],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "telegram_user_id",
+              "displayName": "telegram_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_username",
+              "displayName": "client_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "collected_data",
+              "displayName": "collected_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2752,
+        448
+      ],
+      "id": "92698cc9-6a69-488e-bb33-4e9e4936a212",
+      "name": "Update Session Complete",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA",
+          "mode": "list",
+          "cachedResultName": "ЮрСорт — Обращения",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 921370034,
+          "mode": "list",
+          "cachedResultName": "Lawyers",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit#gid=921370034"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2960,
+        448
+      ],
+      "id": "4c01f346-3a06-4e33-9927-82e10f964151",
+      "name": "Get Lawyers",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inquiry = $('Parse Final Analysis').first().json;\nconst lawyers = $('Get Lawyers').all().map(i => i.json).filter(l => l.lawyer_id);\n\nconst available = lawyers.filter(l =>\n  l.status === 'available' &&\n  l.specializations &&\n  l.specializations.split(',').map(s => s.trim()).includes(inquiry.case_type)\n);\n\nlet matched = null;\n\nif (available.length > 0) {\n  available.sort((a, b) => (Number(a.active_cases) || 0) - (Number(b.active_cases) || 0));\n  matched = available[0];\n}\n\nif (!matched) {\n  const anyAvailable = lawyers.filter(l => l.status === 'available');\n  if (anyAvailable.length > 0) {\n    anyAvailable.sort((a, b) => (Number(a.active_cases) || 0) - (Number(b.active_cases) || 0));\n    matched = anyAvailable[0];\n  }\n}\n\nconst caseTypeLabels = {\n  family: '👨‍👩‍👧 Семейное',\n  labor: '💼 Трудовое',\n  property: '🏠 Недвижимость/Имущество',\n  corporate: '🏢 Корпоративное',\n  consumer: '🛒 Защита прав потребителей',\n  other: '📋 Иное'\n};\n\nconst urgencyLabels = { low: '🟢 Низкая', medium: '🟡 Средняя', high: '🔴 Высокая' };\nconst complexityLabels = { low: '🟢 Низкая', medium: '🟡 Средняя', high: '🔴 Высокая' };\n\nconst caseLabel = caseTypeLabels[inquiry.case_type] || inquiry.case_type;\nconst urgLabel = urgencyLabels[inquiry.urgency] || inquiry.urgency;\nconst compLabel = complexityLabels[inquiry.complexity] || inquiry.complexity;\n\nlet lawyerMsg = `📋 Новое обращение ${inquiry.inquiry_id}\\n\\n`;\nlawyerMsg += `👤 Клиент: ${inquiry.client_name}`;\nif (inquiry.client_username) lawyerMsg += ` (@${inquiry.client_username})`;\nlawyerMsg += `\\n📁 Тип дела: ${caseLabel}\\n`;\nlawyerMsg += `⚡ Срочность: ${urgLabel}\\n`;\nlawyerMsg += `📊 Сложность: ${compLabel}\\n\\n`;\nlawyerMsg += `📝 Суть: ${inquiry.summary}\\n\\n`;\nlawyerMsg += `🔑 Ключевые факты: ${inquiry.key_facts}\\n`;\nif (inquiry.attention_points) {\n  lawyerMsg += `\\n⚠️ Внимание: ${inquiry.attention_points}`;\n}\n\nconst keyboard = {\n  inline_keyboard: [[\n    { text: '✅ Взять', callback_data: `accept:${inquiry.inquiry_id}` },\n    { text: '🔄 Передать', callback_data: `reassign:${inquiry.inquiry_id}` },\n    { text: '❌ Отклонить', callback_data: `decline:${inquiry.inquiry_id}` }\n  ]]\n};\n\nconst sendBody = JSON.stringify({\n  chat_id: matched ? matched.telegram_id : '',\n  text: lawyerMsg,\n  reply_markup: keyboard\n});\n\nconst now = new Date();\nconst assignId = `AS-${now.toISOString().slice(0,10).replace(/-/g,'')}-${String(Math.floor(Math.random()*999)+1).padStart(3,'0')}`;\n\nreturn [{\n  json: {\n    matched: matched ? 'yes' : 'no',\n    lawyer_id: matched ? matched.lawyer_id : '',\n    lawyer_name: matched ? matched.name : '',\n    lawyer_telegram_id: matched ? matched.telegram_id : '',\n    lawyer_row_number: matched ? matched.row_number : '',\n    inquiry_id: inquiry.inquiry_id,\n    chat_id: inquiry.chat_id,\n    client_name: inquiry.client_name,\n    send_body: sendBody,\n    assignment_id: assignId,\n    timestamp: now.toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3168,
+        448
+      ],
+      "id": "83e41380-70f7-43af-8fbd-81ebe79d5332",
+      "name": "Match Lawyer"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA",
+          "mode": "list",
+          "cachedResultName": "ЮрСорт — Обращения",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 534315369,
+          "mode": "list",
+          "cachedResultName": "Assignments",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit#gid=534315369"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "assignment_id": "={{ $json.assignment_id }}",
+            "inquiry_id": "={{ $json.inquiry_id }}",
+            "lawyer_id": "={{ $json.lawyer_id }}",
+            "action": "assigned",
+            "timestamp": "={{ $json.timestamp }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "assignment_id",
+              "displayName": "assignment_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "inquiry_id",
+              "displayName": "inquiry_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lawyer_id",
+              "displayName": "lawyer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "previous_lawyer_id",
+              "displayName": "previous_lawyer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3376,
+        448
+      ],
+      "id": "145f1382-ccdd-429a-9e24-092d9343ca78",
+      "name": "Save Assignment",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Match Lawyer').first().json.send_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3584,
+        448
+      ],
+      "id": "c37c6a82-9963-4f5b-bb3d-f197c16b922d",
+      "name": "Send to Lawyer"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={   \"chat_id\": {{ $('Match Lawyer').first().json.chat_id }},   \"text\": \"✅ Ваше обращение принято и передано специалисту.\\n\\nНомер обращения: {{ $('Match Lawyer').first().json.inquiry_id }}\\nЮрист: {{ $('Match Lawyer').first().json.lawyer_name }}\\n\\nОжидайте — юрист свяжется с вами.\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3792,
+        448
+      ],
+      "id": "fd6156d9-25c2-4ff5-b11f-25fb195d83b3",
+      "name": "Send Client Confirmation"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cb = $('Telegram Trigger').first().json.callback_query;\n\nif (!cb || !cb.data) {\n  return [{ json: { action: 'none', inquiry_id: '', lawyer_chat_id: '', callback_id: '', message_id: '' } }];\n}\n\nconst parts = cb.data.split(':');\n\nreturn [{\n  json: {\n    action: parts[0],\n    inquiry_id: parts[1] || '',\n    lawyer_chat_id: cb.from.id,\n    lawyer_name: cb.from.first_name || '',\n    callback_id: cb.id,\n    message_id: cb.message.message_id\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        -288
+      ],
+      "id": "9a4790f2-bdd5-454c-be1d-3b029987886a",
+      "name": "Parse Callback"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "accept",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "96581001-6078-4286-8e6a-f631b9b974ee"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "accept"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "df5b6de3-9350-4ecd-b1d3-dfb52608acc3",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "decline",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "decline"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "3a54d122-40f2-4324-9a53-ed4735806469",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "reassign",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reassign"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        544,
+        -288
+      ],
+      "id": "5f0241bd-a3d5-42ac-8437-5a69fa52cc04",
+      "name": "Lawyer Action"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA",
+          "mode": "list",
+          "cachedResultName": "ЮрСорт — Обращения",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 56345580,
+          "mode": "list",
+          "cachedResultName": "Inquiries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit#gid=56345580"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "inquiry_id",
+              "lookupValue": "={{ $('Parse Callback').first().json.inquiry_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        752,
+        -384
+      ],
+      "id": "516b05e9-03f1-46b4-afa9-6169dd184251",
+      "name": "Get Inquiry for Accept",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cb = $('Parse Callback').first().json;\nconst inquiry = $('Get Inquiry for Accept').first().json;\n\nreturn [{\n  json: {\n    callback_id: cb.callback_id,\n    message_id: cb.message_id,\n    lawyer_chat_id: cb.lawyer_chat_id,\n    inquiry_id: cb.inquiry_id,\n    inquiry_row_number: inquiry.row_number,\n    client_telegram_id: inquiry.client_telegram_id,\n    client_name: inquiry.client_name,\n    lawyer_name: cb.lawyer_name\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -384
+      ],
+      "id": "b1e1b641-fbde-4572-9245-72cfddb2b034",
+      "name": "Build Accept Update"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA",
+          "mode": "list",
+          "cachedResultName": "ЮрСорт — Обращения",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 56345580,
+          "mode": "list",
+          "cachedResultName": "Inquiries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit#gid=56345580"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $json.inquiry_row_number }}",
+            "status": "in_progress"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "inquiry_id",
+              "displayName": "inquiry_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_username",
+              "displayName": "client_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_telegram_id",
+              "displayName": "client_telegram_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "case_type",
+              "displayName": "case_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "urgency",
+              "displayName": "urgency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "complexity",
+              "displayName": "complexity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "key_facts",
+              "displayName": "key_facts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "attention_points",
+              "displayName": "attention_points",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "original_text",
+              "displayName": "original_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1168,
+        -384
+      ],
+      "id": "3ae5053c-e8d5-49a7-b4d6-0b21ffbba1cc",
+      "name": "Update Inquiry Accepted",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA",
+          "mode": "list",
+          "cachedResultName": "ЮрСорт — Обращения",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 534315369,
+          "mode": "list",
+          "cachedResultName": "Assignments",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit#gid=534315369"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "assignment_id": "=AS-{{ Date.now() }}",
+            "inquiry_id": "={{ $('Build Accept Update').first().json.inquiry_id }}",
+            "lawyer_id": "={{ $('Build Accept Update').first().json.lawyer_chat_id }}",
+            "action": "accepted",
+            "timestamp": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "assignment_id",
+              "displayName": "assignment_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "inquiry_id",
+              "displayName": "inquiry_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lawyer_id",
+              "displayName": "lawyer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "previous_lawyer_id",
+              "displayName": "previous_lawyer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1376,
+        -384
+      ],
+      "id": "80865146-41d1-42d5-b55a-100a8111feec",
+      "name": "Save Accept Assignment",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/answerCallbackQuery",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={   \"callback_query_id\": \"{{ $('Build Accept Update').first().json.callback_id }}\",   \"text\": \"✅ Вы приняли обращение\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1584,
+        -384
+      ],
+      "id": "ebe9bec1-dbbf-4bc0-856f-b32ef7ac9f00",
+      "name": "Answer Callback Accept"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/editMessageReplyMarkup",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={   \"chat_id\": {{ $('Build Accept Update').first().json.lawyer_chat_id }},   \"message_id\": {{ $('Build Accept Update').first().json.message_id }},   \"reply_markup\": { \"inline_keyboard\": [[{ \"text\": \"✅ Принято\", \"callback_data\": \"noop\" }]] } }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1792,
+        -384
+      ],
+      "id": "080f18fd-45ad-44d5-ae84-97fa86dd0499",
+      "name": "Edit Message Accept"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA",
+          "mode": "list",
+          "cachedResultName": "ЮрСорт — Обращения",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 56345580,
+          "mode": "list",
+          "cachedResultName": "Inquiries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit#gid=56345580"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "inquiry_id",
+              "lookupValue": "={{ $('Parse Callback').first().json.inquiry_id}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        784,
+        -224
+      ],
+      "id": "f7edc5eb-9bcc-4165-9972-510bdd8f508d",
+      "name": "Get Inquiry for Reassign",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA",
+          "mode": "list",
+          "cachedResultName": "ЮрСорт — Обращения",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 534315369,
+          "mode": "list",
+          "cachedResultName": "Assignments",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit#gid=534315369"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        992,
+        -224
+      ],
+      "id": "27cf4d7b-872c-4822-9dec-8dce43546ca7",
+      "name": "Get All Assignments",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA",
+          "mode": "list",
+          "cachedResultName": "ЮрСорт — Обращения",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 921370034,
+          "mode": "list",
+          "cachedResultName": "Lawyers",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit#gid=921370034"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1200,
+        -224
+      ],
+      "id": "554089d1-0ca9-41fd-b810-9d3979d1be6b",
+      "name": "Get Lawyers Reassign",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cb = $('Parse Callback').first().json;\nconst inquiry = $('Get Inquiry for Reassign').first().json;\nconst assignments = $('Get All Assignments').all().map(i => i.json).filter(a => a.assignment_id);\nconst lawyers = $('Get Lawyers Reassign').all().map(i => i.json).filter(l => l.lawyer_id);\n\n// Юристы, которым уже назначали это обращение\nconst triedIds = assignments\n  .filter(a => a.inquiry_id === cb.inquiry_id)\n  .map(a => a.lawyer_id);\n\n// Добавляем текущего юриста\ntriedIds.push(String(cb.lawyer_chat_id));\n\nconst caseType = inquiry.case_type;\n\n// Ищем по специализации, исключая уже попробованных\nlet candidates = lawyers.filter(l =>\n  l.status === 'available' &&\n  !triedIds.includes(String(l.telegram_id)) &&\n  l.specializations &&\n  l.specializations.split(',').map(s => s.trim()).includes(caseType)\n);\n\n// Если нет по специализации — любой доступный\nif (candidates.length === 0) {\n  candidates = lawyers.filter(l =>\n    l.status === 'available' &&\n    !triedIds.includes(String(l.telegram_id))\n  );\n}\n\nlet next = null;\nif (candidates.length > 0) {\n  candidates.sort((a, b) => (Number(a.active_cases) || 0) - (Number(b.active_cases) || 0));\n  next = candidates[0];\n}\n\nconst caseTypeLabels = {\n  family: '👨‍👩‍👧 Семейное', labor: '💼 Трудовое',\n  property: '🏠 Недвижимость', corporate: '🏢 Корпоративное',\n  consumer: '🛒 Потребители', other: '📋 Иное'\n};\nconst urgencyLabels = { low: '🟢 Низкая', medium: '🟡 Средняя', high: '🔴 Высокая' };\nconst complexityLabels = { low: '🟢 Низкая', medium: '🟡 Средняя', high: '🔴 Высокая' };\n\nlet newSendBody = '';\nif (next) {\n  let msg = `📋 Переназначено: ${cb.inquiry_id}\\n\\n`;\n  msg += `👤 Клиент: ${inquiry.client_name}`;\n  if (inquiry.client_username) msg += ` (@${inquiry.client_username})`;\n  msg += `\\n📁 Тип: ${caseTypeLabels[inquiry.case_type] || inquiry.case_type}\\n`;\n  msg += `⚡ Срочность: ${urgencyLabels[inquiry.urgency] || inquiry.urgency}\\n`;\n  msg += `📊 Сложность: ${complexityLabels[inquiry.complexity] || inquiry.complexity}\\n\\n`;\n  msg += `📝 ${inquiry.summary}\\n🔑 ${inquiry.key_facts}`;\n  if (inquiry.attention_points) msg += `\\n⚠️ ${inquiry.attention_points}`;\n\n  const kb = { inline_keyboard: [[\n    { text: '✅ Взять', callback_data: `accept:${cb.inquiry_id}` },\n    { text: '🔄 Передать', callback_data: `reassign:${cb.inquiry_id}` },\n    { text: '❌ Отклонить', callback_data: `decline:${cb.inquiry_id}` }\n  ]]};\n\n  newSendBody = JSON.stringify({ chat_id: next.telegram_id, text: msg, reply_markup: kb });\n}\n\nconst now = new Date();\nconst assignId = `AS-${now.toISOString().slice(0,10).replace(/-/g,'')}-${String(Math.floor(Math.random()*999)+1).padStart(3,'0')}`;\n\nreturn [{\n  json: {\n    found_next: next ? 'yes' : 'no',\n    next_lawyer_id: next ? next.lawyer_id : '',\n    next_lawyer_name: next ? next.name : '',\n    next_telegram_id: next ? next.telegram_id : '',\n    inquiry_id: cb.inquiry_id,\n    inquiry_row_number: inquiry.row_number,\n    client_telegram_id: inquiry.client_telegram_id,\n    callback_id: cb.callback_id,\n    message_id: cb.message_id,\n    lawyer_chat_id: cb.lawyer_chat_id,\n    previous_lawyer_id: String(cb.lawyer_chat_id),\n    action: cb.action === 'decline' ? 'declined' : 'reassigned',\n    send_body: newSendBody,\n    assignment_id: assignId,\n    timestamp: now.toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        -224
+      ],
+      "id": "beac1ed0-182e-4ec1-aa21-e2e50e012255",
+      "name": "Find Next Lawyer"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA",
+          "mode": "list",
+          "cachedResultName": "ЮрСорт — Обращения",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 534315369,
+          "mode": "list",
+          "cachedResultName": "Assignments",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit#gid=534315369"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "assignment_id": "={{ $json.assignment_id }}",
+            "inquiry_id": "={{ $json.inquiry_id }}",
+            "lawyer_id": "={{ $json.next_lawyer_id }}",
+            "action": "={{ $json.action }}",
+            "previous_lawyer_id": "={{ $json.previous_lawyer_id }}",
+            "timestamp": "={{ $json.timestamp }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "assignment_id",
+              "displayName": "assignment_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "inquiry_id",
+              "displayName": "inquiry_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lawyer_id",
+              "displayName": "lawyer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "previous_lawyer_id",
+              "displayName": "previous_lawyer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1616,
+        -224
+      ],
+      "id": "a5cb8cce-08de-47eb-8a9f-80e12b390486",
+      "name": "Save Reassign Assignment",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/answerCallbackQuery",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"callback_query_id\": \"{{ $('Find Next Lawyer').first().json.callback_id }}\",\n  \"text\": \"{{ $('Find Next Lawyer').first().json.found_next === 'yes' ? 'Передано другому юристу' : 'Нет доступных юристов' }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1824,
+        -224
+      ],
+      "id": "c6299f04-0a07-4b3b-aa32-78f0c4644136",
+      "name": "Answer Callback Reassign"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/editMessageReplyMarkup",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"chat_id\": {{ $('Find Next Lawyer').first().json.lawyer_chat_id }},\n  \"message_id\": {{ $('Find Next Lawyer').first().json.message_id }},\n  \"reply_markup\": { \"inline_keyboard\": [[{ \"text\": \"{{ $('Find Next Lawyer').first().json.action === 'declined' ? '❌ Отклонено' : '🔄 Передано' }}\", \"callback_data\": \"noop\" }]] }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2032,
+        -224
+      ],
+      "id": "7128ac79-2c1a-4960-9c4d-4d40bf59bbe2",
+      "name": "Edit Message Reassign",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Find Next Lawyer').first().json.found_next }}",
+                    "rightValue": "yes",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "fc9ebe60-2724-475e-a360-5a408ef08574"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "found"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "8f2312f2-da6a-4d01-908e-7593b4b9feb4",
+                    "leftValue": "={{ $('Find Next Lawyer').first().json.found_next }}",
+                    "rightValue": "no",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "not_found"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2240,
+        -224
+      ],
+      "id": "f8c25d45-f9fe-4261-b628-8c99c444fca9",
+      "name": "Found Next Lawyer"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Find Next Lawyer').first().json.send_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2448,
+        -416
+      ],
+      "id": "5ca2ae2c-da68-476d-8d24-959ab20ca80e",
+      "name": "Send to Next Lawyer"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={   \"chat_id\": {{ $('Find Next Lawyer').first().json.client_telegram_id }},   \"text\": \"⚠️ К сожалению, все специалисты сейчас заняты.\\n\\nВаше обращение {{ $('Find Next Lawyer').first().json.inquiry_id }} сохранено — мы свяжемся с вами при первой возможности.\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2688,
+        -160
+      ],
+      "id": "3a418426-3b50-4c61-96f9-f25b61f4aa60",
+      "name": "Notify No Lawyers"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA",
+          "mode": "list",
+          "cachedResultName": "ЮрСорт — Обращения",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 56345580,
+          "mode": "list",
+          "cachedResultName": "Inquiries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zU8yKg9e0a79Y4oFU0B6eX3awZofOEBPYHGcoYHOzjA/edit#gid=56345580"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('Find Next Lawyer').first().json.inquiry_row_number }}",
+            "status": "declined"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "inquiry_id",
+              "displayName": "inquiry_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_username",
+              "displayName": "client_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_telegram_id",
+              "displayName": "client_telegram_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "case_type",
+              "displayName": "case_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "urgency",
+              "displayName": "urgency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "complexity",
+              "displayName": "complexity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "key_facts",
+              "displayName": "key_facts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "attention_points",
+              "displayName": "attention_points",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "original_text",
+              "displayName": "original_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2688,
+        -336
+      ],
+      "id": "2ce95ac0-512d-42c2-b7e0-aa1caaa770c6",
+      "name": "Update Inquiry Declined",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Telegram Trigger": [
+      {
+        "json": {
+          "update_id": 597180853,
+          "callback_query": {
+            "id": "1926666891226120881",
+            "from": {
+              "id": 448587092,
+              "is_bot": false,
+              "first_name": "Влад",
+              "username": "vlad5595",
+              "language_code": "ru"
+            },
+            "message": {
+              "message_id": 358,
+              "from": {
+                "id": 8749798641,
+                "is_bot": true,
+                "first_name": "ЮрСорт",
+                "username": "kivi_agency_test_bot"
+              },
+              "chat": {
+                "id": 448587092,
+                "first_name": "Влад",
+                "username": "vlad5595",
+                "type": "private"
+              },
+              "date": 1783518860,
+              "text": "📋 Новое обращение LS-20260708-504\n\n👤 Клиент: Влад (@vlad5595)\n📁 Тип дела: 👨‍👩‍👧 Семейное\n⚡ Срочность: 🔴 Высокая\n📊 Сложность: 🔴 Высокая\n\n📝 Суть: Клиентка разводится с мужем, есть двое несовершеннолетних детей. Муж подал иск в суд о разделе совместно нажитого имущества (квартира стоимостью 8 млн руб.), назначено судебное заседание через две недели. Необходима срочная подготовка правовой позиции по разделу имущества и определению места жительства детей.\n\n🔑 Ключевые факты: Развод с мужем, двое детей (5 и 8 лет); Квартира куплена в браке за 8 млн рублей; Муж подал иск в суд, получена повестка; Судебное заседание через две недели\n\n⚠️ Внимание: Срочно подготовить возражения на иск, собрать документы о доходах, провести оценку квартиры, определить интересы детей. Возможна подача встречного иска об определении места жительства детей и взыскании алиментов. Важно не пропустить сроки (2 недели). Рекомендуется привлечь адвоката.",
+              "entities": [
+                {
+                  "offset": 53,
+                  "length": 9,
+                  "type": "mention"
+                }
+              ],
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    {
+                      "text": "✅ Взять",
+                      "callback_data": "accept:LS-20260708-504"
+                    },
+                    {
+                      "text": "🔄 Передать",
+                      "callback_data": "reassign:LS-20260708-504"
+                    },
+                    {
+                      "text": "❌ Отклонить",
+                      "callback_data": "decline:LS-20260708-504"
+                    }
+                  ]
+                ]
+              }
+            },
+            "chat_instance": "-4555534578206257109",
+            "data": "decline:LS-20260708-504"
+          }
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Route Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Type": {
+      "main": [
+        [
+          {
+            "node": "Check Message Type",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse Callback",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Fallback Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Message Type": {
+      "main": [
+        [
+          {
+            "node": "Start or Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start or Text": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lookup Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Welcome": {
+      "main": [
+        [
+          {
+            "node": "Build New Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build New Session": {
+      "main": [
+        [
+          {
+            "node": "Create Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Session": {
+      "main": [
+        [
+          {
+            "node": "Find Active Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Active Session": {
+      "main": [
+        [
+          {
+            "node": "Has Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Session": {
+      "main": [
+        [
+          {
+            "node": "Send No Session Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route by Stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Stage": {
+      "main": [
+        [
+          {
+            "node": "Build LLM Assessment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Clarification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Clarification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build LLM Assessment": {
+      "main": [
+        [
+          {
+            "node": "LLM Assessment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Assessment": {
+      "main": [
+        [
+          {
+            "node": "Parse Assessment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Assessment": {
+      "main": [
+        [
+          {
+            "node": "Needs Clarification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Clarification": {
+      "main": [
+        [
+          {
+            "node": "Build Clarification Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Final Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Clarification Message": {
+      "main": [
+        [
+          {
+            "node": "Update Session Clarify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Session Clarify": {
+      "main": [
+        [
+          {
+            "node": "Send Clarification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Final Prompt": {
+      "main": [
+        [
+          {
+            "node": "LLM Final Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Clarification": {
+      "main": [
+        [
+          {
+            "node": "LLM Final Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Final Analysis": {
+      "main": [
+        [
+          {
+            "node": "Parse Final Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Final Analysis": {
+      "main": [
+        [
+          {
+            "node": "Save Inquiry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Inquiry": {
+      "main": [
+        [
+          {
+            "node": "Update Session Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Session Complete": {
+      "main": [
+        [
+          {
+            "node": "Get Lawyers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Lawyers": {
+      "main": [
+        [
+          {
+            "node": "Match Lawyer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Lawyer": {
+      "main": [
+        [
+          {
+            "node": "Save Assignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Assignment": {
+      "main": [
+        [
+          {
+            "node": "Send to Lawyer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Lawyer": {
+      "main": [
+        [
+          {
+            "node": "Send Client Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Callback": {
+      "main": [
+        [
+          {
+            "node": "Lawyer Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lawyer Action": {
+      "main": [
+        [
+          {
+            "node": "Get Inquiry for Accept",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Inquiry for Reassign",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Inquiry for Reassign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Inquiry for Accept": {
+      "main": [
+        [
+          {
+            "node": "Build Accept Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Accept Update": {
+      "main": [
+        [
+          {
+            "node": "Update Inquiry Accepted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Inquiry Accepted": {
+      "main": [
+        [
+          {
+            "node": "Save Accept Assignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Accept Assignment": {
+      "main": [
+        [
+          {
+            "node": "Answer Callback Accept",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Callback Accept": {
+      "main": [
+        [
+          {
+            "node": "Edit Message Accept",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Inquiry for Reassign": {
+      "main": [
+        [
+          {
+            "node": "Get All Assignments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Assignments": {
+      "main": [
+        [
+          {
+            "node": "Get Lawyers Reassign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Lawyers Reassign": {
+      "main": [
+        [
+          {
+            "node": "Find Next Lawyer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Next Lawyer": {
+      "main": [
+        [
+          {
+            "node": "Save Reassign Assignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Reassign Assignment": {
+      "main": [
+        [
+          {
+            "node": "Answer Callback Reassign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Callback Reassign": {
+      "main": [
+        [
+          {
+            "node": "Edit Message Reassign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Message Reassign": {
+      "main": [
+        [
+          {
+            "node": "Found Next Lawyer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Found Next Lawyer": {
+      "main": [
+        [
+          {
+            "node": "Send to Next Lawyer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify No Lawyers",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Inquiry Declined",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Inquiry Declined": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "07e9f238-0641-4db3-8542-9dab24200c63",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7336350515be8065f9e6f16c44aebd7540c1ed731f4d604c5a4d9b68a55dfd93"
+  },
+  "nodeGroups": [],
+  "id": "sXTWAXENiI7fM4Xo",
+  "tags": []
+}

@@ -1,0 +1,388 @@
+{
+  "name": "14 — МедСорт: Weekly Analytics",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b0126d79-659b-476d-807d-ab20629d44d0",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1245674878,
+          "mode": "list",
+          "cachedResultName": "Assignments",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1245674878"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        416,
+        0
+      ],
+      "id": "e52ddc06-a6c2-4094-9fa7-130cef4c1a74",
+      "name": "Get Assignments",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 931165071,
+          "mode": "list",
+          "cachedResultName": "Feedback",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=931165071"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        0
+      ],
+      "id": "17732332-745c-4f9c-a6ae-48571bb309b4",
+      "name": "Get Feedback",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 605204595,
+          "mode": "list",
+          "cachedResultName": "Doctors",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=605204595"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        832,
+        0
+      ],
+      "id": "e2f8cf98-fe19-49a4-b115-62563c28af11",
+      "name": "Get Doctors",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inquiries = $('Get Inquiries').all().filter(r => r.json.inquiry_id);\nconst assignments = $('Get Assignments').all().filter(r => r.json.assignment_id);\nconst feedback = $('Get Feedback').all().filter(r => r.json.feedback_id);\nconst doctors = $('Get Doctors').all().filter(r => r.json.doctor_id);\n\n// Период — последние 7 дней\nconst now = new Date();\nconst weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\nconst weekAgoStr = weekAgo.toISOString().slice(0, 10);\n\nconst recentInquiries = inquiries.filter(r => r.json.date >= weekAgoStr);\nconst allInquiries = inquiries;\n\n// Обращения по направлениям (за неделю)\nconst byDirection = {};\nrecentInquiries.forEach(r => {\n  const dir = r.json.direction || 'unknown';\n  byDirection[dir] = (byDirection[dir] || 0) + 1;\n});\n\n// Обращения по срочности (за неделю)\nconst byUrgency = {};\nrecentInquiries.forEach(r => {\n  const urg = r.json.urgency || 'unknown';\n  byUrgency[urg] = (byUrgency[urg] || 0) + 1;\n});\n\n// Статусы обращений (за неделю)\nconst byStatus = {};\nrecentInquiries.forEach(r => {\n  const st = r.json.status || 'unknown';\n  byStatus[st] = (byStatus[st] || 0) + 1;\n});\n\n// Загрузка врачей\nconst doctorLoad = doctors.map(r => ({\n  name: r.json.name,\n  active: parseInt(r.json.active_patients) || 0,\n  max: parseInt(r.json.max_patients) || 0,\n  load_pct: Math.round(((parseInt(r.json.active_patients) || 0) / (parseInt(r.json.max_patients) || 1)) * 100)\n}));\n\n// Средний рейтинг из фидбэка (за неделю)\nconst recentFeedback = feedback.filter(r => r.json.received_at >= weekAgoStr);\nlet avgScore = 0;\nif (recentFeedback.length > 0) {\n  const total = recentFeedback.reduce((sum, r) => sum + (parseInt(r.json.score) || 0), 0);\n  avgScore = (total / recentFeedback.length).toFixed(1);\n}\n\n// Использование голоса/фото\nconst voiceCount = recentInquiries.filter(r => r.json.voice_used === 'TRUE').length;\nconst photoCount = recentInquiries.filter(r => r.json.photo_analysis && r.json.photo_analysis !== '').length;\n\n// Мультиязычность\nconst byLanguage = {};\nrecentInquiries.forEach(r => {\n  const lang = r.json.language || 'unknown';\n  byLanguage[lang] = (byLanguage[lang] || 0) + 1;\n});\n\nconst analyticsData = {\n  period: `${weekAgoStr} — ${now.toISOString().slice(0, 10)}`,\n  total_all_time: allInquiries.length,\n  total_week: recentInquiries.length,\n  by_direction: JSON.stringify(byDirection),\n  by_urgency: JSON.stringify(byUrgency),\n  by_status: JSON.stringify(byStatus),\n  by_language: JSON.stringify(byLanguage),\n  doctor_load: JSON.stringify(doctorLoad),\n  avg_feedback_score: avgScore,\n  feedback_count: recentFeedback.length,\n  voice_used: voiceCount,\n  photo_used: photoCount\n};\n\nreturn analyticsData;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "7ece8ac9-e02c-4b0c-ad2e-7b76ac17df88",
+      "name": "Aggregate Analytics"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\n\nconst systemPrompt = `Ты — аналитик клиники «НоваМед». На основе данных за неделю сформируй краткий аналитический отчёт для администратора клиники.\n\nПиши на русском. Формат: структурированный текст с эмодзи для наглядности. Не более 15 предложений. В конце — 2-3 конкретные рекомендации.\n\nДАННЫЕ ЗА ПЕРИОД ${data.period}:\n\nВсего обращений за неделю: ${data.total_week}\nВсего обращений за всё время: ${data.total_all_time}\n\nПо направлениям: ${data.by_direction}\nПо срочности: ${data.by_urgency}\nПо статусам: ${data.by_status}\nПо языкам: ${data.by_language}\n\nЗагрузка врачей: ${data.doctor_load}\n\nСредний рейтинг обратной связи: ${data.avg_feedback_score} (из ${data.feedback_count} отзывов)\n\nГолосовых обращений: ${data.voice_used}\nФото-обращений: ${data.photo_used}\n\nСформируй отчёт.`;\n\nconst requestBody = {\n  model: 'deepseek-v4-flash',\n  messages: [\n    { role: 'system', content: systemPrompt },\n    { role: 'user', content: 'Сформируй еженедельный отчёт.' }\n  ],\n  temperature: 0.4\n};\n\nreturn {\n  request_body: JSON.stringify(requestBody)\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        0
+      ],
+      "id": "910ade1f-dcfa-4775-bd3f-06ef315ae92a",
+      "name": "Build Reporter Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1456,
+        0
+      ],
+      "id": "24685ea7-fe03-4bac-a5ca-133a0cb249a0",
+      "name": "LLM Reporter",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mP5T7DHPI4HKzCJm",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Aggregate Analytics').first().json;\nlet report = '';\n\ntry {\n  report = $json.choices[0].message.content || '';\n} catch(e) {\n  report = 'Не удалось сформировать отчёт.';\n}\n\nconst header = `📊 Еженедельный отчёт НоваМед\\n📅 ${data.period}\\n\\n`;\n\nreturn {\n  text: header + report,\n  admin_chat_id: '448587092'\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        0
+      ],
+      "id": "edf3bf5b-a3f6-4dd5-92a7-27dcfe74ed2b",
+      "name": "Parse Report"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sendBody = JSON.stringify({\n  chat_id: $json.admin_chat_id,\n  text: $json.text\n});\n\nreturn { send_body: sendBody };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1872,
+        0
+      ],
+      "id": "bf32ee9e-70a5-495e-b551-b2d695d9a33e",
+      "name": "Build Send Body"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.send_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2080,
+        0
+      ],
+      "id": "9423e6e0-f2c4-417b-b252-f5b67f9d923f",
+      "name": "Send Admin Report"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA",
+          "mode": "list",
+          "cachedResultName": "P08_МедСорт_Sheets_v3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1931181431,
+          "mode": "list",
+          "cachedResultName": "Inquiries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pXUcGEnMs-_BdB16G_P-2V5x0whfGaixsepkZqzOqAA/edit#gid=1931181431"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        0
+      ],
+      "id": "7a133486-8d54-46e7-90c4-fecf03ae321f",
+      "name": "Get Inquiries",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Inquiries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Assignments": {
+      "main": [
+        [
+          {
+            "node": "Get Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Feedback": {
+      "main": [
+        [
+          {
+            "node": "Get Doctors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Doctors": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Analytics": {
+      "main": [
+        [
+          {
+            "node": "Build Reporter Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Reporter Prompt": {
+      "main": [
+        [
+          {
+            "node": "LLM Reporter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Reporter": {
+      "main": [
+        [
+          {
+            "node": "Parse Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Report": {
+      "main": [
+        [
+          {
+            "node": "Build Send Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Send Body": {
+      "main": [
+        [
+          {
+            "node": "Send Admin Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Inquiries": {
+      "main": [
+        [
+          {
+            "node": "Get Assignments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "d5f57799-8654-4183-83c5-f0026b0fa701",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7336350515be8065f9e6f16c44aebd7540c1ed731f4d604c5a4d9b68a55dfd93"
+  },
+  "nodeGroups": [],
+  "id": "cuaIKp2QwPq4al39",
+  "tags": []
+}

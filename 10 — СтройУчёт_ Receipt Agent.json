@@ -1,0 +1,2391 @@
+{
+  "name": "10 — СтройУчёт: Receipt Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "callback_query",
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "35bf82c5-d389-4906-aaff-5c2a7a385e2a",
+      "name": "Telegram Trigger",
+      "webhookId": "61e17b43-b3b1-47e5-a8b2-24861eec1e3d",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.photo ? 'true' : '' }}",
+                    "rightValue": "={{ $json.message.photo }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    },
+                    "id": "cc4ed727-d8a6-430c-84ca-800d1cffab50"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "9f44ca1d-90bf-4e00-96cd-e35ba9960d29",
+                    "leftValue": "={{ $json.callback_query ? 'true' : '' }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "edc52622-0840-4f59-b298-c9e110309034",
+      "name": "Route Type"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').first().json.message.chat.id }}",
+        "text": "📸 Отправьте фото чека — я распознаю сумму, дату и категорию.  Поддерживаются обычные фото из камеры. Документы (PDF) пока не принимаю.",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        320,
+        224
+      ],
+      "id": "96b07ad1-672f-4e2e-9ff3-b280379b5e2c",
+      "name": "Send Fallback Reply",
+      "webhookId": "ae92d25e-c133-4070-9d59-52fe5c646b3e",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/getFile",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "file_id",
+              "value": "={{ $json.message.photo.pop().file_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        -160
+      ],
+      "id": "56b4b941-e3ef-4b05-a5e0-311a0b8fc422",
+      "name": "Get File Path"
+    },
+    {
+      "parameters": {
+        "jsCode": "const filePath = $input.first().json.result.file_path;\nconst trigger = $('Telegram Trigger').first().json;\n\n// Прямой URL файла на серверах Telegram\nconst botToken = '8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w';\nconst fileUrl = `https://api.telegram.org/file/bot${botToken}/${filePath}`;\n\nconst request_body = JSON.stringify({\n  model: \"google/gemini-2.5-flash\",\n  messages: [\n    {\n      role: \"user\",\n      content: [\n        {\n          type: \"image_url\",\n          image_url: {\n            url: fileUrl\n          }\n        },\n        {\n          type: \"text\",\n          text: `Ты — ассистент по учёту расходов строительной бригады.\nИзвлеки из фото чека данные и верни ТОЛЬКО JSON без markdown-обёртки:\n{\n  \"date\": \"YYYY-MM-DD\",\n  \"amount\": число (итого к оплате, в рублях, с копейками через точку),\n  \"items\": \"краткое перечисление покупок через запятую\",\n  \"shop_name\": \"название магазина или null\",\n  \"category_guess\": \"одно из: materials, fuel, tools, food, delivery, other\",\n  \"category_reason\": \"почему выбрал эту категорию, 5-10 слов\"\n}\nЕсли дату не можешь прочитать — ставь null.\nЕсли сумму не можешь прочитать — ставь 0.\nНе выдумывай данных, только то что видишь на чеке.`\n        }\n      ]\n    }\n  ],\n  temperature: 0,\n  max_tokens: 2000\n});\n\nreturn [{ json: {\n  request_body,\n  user_name: trigger.message.from.first_name || 'Unknown',\n  user_id: trigger.message.from.id,\n  chat_id: trigger.message.chat.id\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        -160
+      ],
+      "id": "e3880d12-f87a-4f19-8882-9cda0b8f275b",
+      "name": "Build Vision Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        816,
+        -160
+      ],
+      "id": "45974c78-3af3-4a9e-8d87-b075cc4ac294",
+      "name": "Extract Receipt"
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nlet raw = response.choices[0].message.content;\n\n// Убираем markdown-обёртку\nraw = raw.replace(/```json\\s*/g, '').replace(/```\\s*/g, '').trim();\n\n// Убираем возможные управляющие символы\nraw = raw.replace(/[\\x00-\\x1F\\x7F]/g, (ch) => {\n  if (ch === '\\n' || ch === '\\r' || ch === '\\t') return ch;\n  return '';\n});\n\nlet content;\ntry {\n  content = JSON.parse(raw);\n} catch (e) {\n  // Попытка починить обрезанный JSON\n  // Закрываем незакрытые строки и объект\n  let fixed = raw;\n  if (!fixed.endsWith('}')) {\n    // Обрезаем до последней полной пары key:value\n    const lastComma = fixed.lastIndexOf(',');\n    const lastColon = fixed.lastIndexOf(':');\n    if (lastComma > lastColon) {\n      fixed = fixed.substring(0, lastComma);\n    }\n    // Закрываем незакрытую строку\n    const quoteCount = (fixed.match(/\"/g) || []).length;\n    if (quoteCount % 2 !== 0) {\n      fixed += '\"';\n    }\n    fixed += '}';\n  }\n  try {\n    content = JSON.parse(fixed);\n  } catch (e2) {\n    // Если совсем не парсится — возвращаем дефолт\n    content = {\n      date: null,\n      amount: 0,\n      items: raw.substring(0, 200),\n      shop_name: null,\n      category_guess: 'other',\n      category_reason: 'не удалось распознать'\n    };\n  }\n}\n\nconst prev = $('Build Vision Request').first().json;\n\nconst now = new Date();\nconst pad = (n) => String(n).padStart(2, '0');\nconst dateStr = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}`;\nconst seq = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');\nconst expense_id = `SU-${dateStr}-${seq}`;\n\nconst validCats = ['materials', 'fuel', 'tools', 'food', 'delivery', 'other'];\nconst category = validCats.includes(content.category_guess) ? content.category_guess : 'other';\n\nreturn [{\n  json: {\n    expense_id,\n    date: content.date || now.toISOString().slice(0, 10),\n    amount: content.amount || 0,\n    category,\n    category_reason: content.category_reason || '',\n    description: content.items || '',\n    shop_name: content.shop_name || '',\n    submitted_by: prev.user_name,\n    telegram_user_id: String(prev.user_id),\n    chat_id: prev.chat_id,\n    created_at: now.toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        -160
+      ],
+      "id": "95c89433-fcda-4591-a6ed-5c8cab49e866",
+      "name": "Parse Receipt"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM",
+          "mode": "list",
+          "cachedResultName": "СтройУчёт — Расходы",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 10642848,
+          "mode": "list",
+          "cachedResultName": "Objects",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit#gid=10642848"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1232,
+        -160
+      ],
+      "id": "8e16a664-bd76-477d-b6d7-b2e1e8c3837e",
+      "name": "Get Objects",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const receipt = $('Parse Receipt').first().json;\nconst objects = $('Get Objects').all()\n  .map(i => i.json)\n  .filter(o => o.status === 'active');\n\n// Если один активный объект — назначаем автоматически\nlet matched_id = '';\nlet matched_name = 'Не указан';\nif (objects.length === 1) {\n  matched_id = objects[0].object_id;\n  matched_name = objects[0].object_name;\n} else if (objects.length > 1) {\n  // Пока не назначаем — пользователь выберет кнопкой\n  matched_id = '';\n  matched_name = 'Не указан (выберите)';\n}\n\nconst catLabels = {\n  materials: '🧱 Материалы',\n  fuel: '⛽ Топливо',\n  tools: '🔧 Инструмент',\n  food: '🍽 Питание',\n  delivery: '🚚 Доставка',\n  other: '📦 Прочее'\n};\n\nconst text = `📋 *Новый чек*\\n\\n` +\n  `📅 Дата: ${receipt.date}\\n` +\n  `💰 Сумма: ${receipt.amount} ₽\\n` +\n  `🏷 Категория: ${catLabels[receipt.category] || receipt.category}\\n` +\n  `🏗 Объект: ${matched_name}\\n` +\n  `📝 ${receipt.description}\\n` +\n  `🏪 ${receipt.shop_name || 'Не указан'}\\n\\n` +\n  `Всё верно?`;\n\nconst eid = receipt.expense_id;\n\nconst keyboard = {\n  inline_keyboard: [\n    [{ text: '✅ Верно', callback_data: `ok:${eid}` }],\n    [\n      { text: '🏷 Категория', callback_data: `cc:${eid}` },\n      { text: '🏗 Объект', callback_data: `co:${eid}` }\n    ],\n    [{ text: '🗑 Удалить', callback_data: `del:${eid}` }]\n  ]\n};\n\nreturn [{\n  json: {\n    expense_id: receipt.expense_id,\n    date: receipt.date,\n    amount: receipt.amount,\n    category: receipt.category,\n    object_id: matched_id,\n    object_name: matched_name,\n    description: receipt.description,\n    shop_name: receipt.shop_name,\n    submitted_by: receipt.submitted_by,\n    telegram_user_id: receipt.telegram_user_id,\n    chat_id: receipt.chat_id,\n    status: 'pending',\n    created_at: receipt.created_at,\n    confirmation_text: text,\n    reply_markup: JSON.stringify(keyboard),\n    send_body: JSON.stringify({\n      chat_id: receipt.chat_id,\n      text: text,\n      parse_mode: \"Markdown\",\n      reply_markup: keyboard\n    })\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        -160
+      ],
+      "id": "d2e503c9-3b0b-4659-b7e3-fe5fc63cc73c",
+      "name": "Build Keyboard"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM",
+          "mode": "list",
+          "cachedResultName": "СтройУчёт — Расходы",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Expenses",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "expense_id": "={{ $json.expense_id }}",
+            "date": "={{ $json.date }}",
+            "amount": "={{ $json.amount }}",
+            "category": "={{ $json.category }}",
+            "object_id": "={{ $json.object_id }}",
+            "object_name": "={{ $json.object_name }}",
+            "description": "={{ $json.description }}",
+            "submitted_by": "={{ $json.submitted_by }}",
+            "telegram_user_id": "={{ $json.telegram_user_id }}",
+            "status": "={{ $json.status }}",
+            "created_at": "={{ $json.created_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "expense_id",
+              "displayName": "expense_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "object_id",
+              "displayName": "object_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "object_name",
+              "displayName": "object_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "submitted_by",
+              "displayName": "submitted_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telegram_user_id",
+              "displayName": "telegram_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1648,
+        -160
+      ],
+      "id": "71d5858f-1874-4d75-b7fb-d5fef7e5842c",
+      "name": "Save Pending",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Build Keyboard').first().json.send_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1856,
+        -160
+      ],
+      "id": "2f7d840b-64b3-492f-8af0-5a1a9e234e60",
+      "name": "Send Confirmation",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cb = $input.first().json.callback_query;\nconst parts = cb.data.split(':');\n\nreturn [{\n  json: {\n    action: parts[0],\n    expense_id: parts[1] || '',\n    value: parts[2] || '',\n    chat_id: cb.message.chat.id,\n    message_id: cb.message.message_id,\n    callback_id: cb.id,\n    user_name: cb.from.first_name || 'Unknown'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        16
+      ],
+      "id": "6df7b4a5-ac80-4ba4-af6d-5855f29e6266",
+      "name": "Parse Callback"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "ok",
+                    "rightValue": "={{ $json.action }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "079dde4e-71fc-4d71-8d98-e0a1c98f19d3"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "988165ce-5504-4058-b70e-a9a8edd3535f",
+                    "leftValue": "del",
+                    "rightValue": "={{ $json.action }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ab6e90f6-e894-4050-8158-9d56813556e9",
+                    "leftValue": "cc",
+                    "rightValue": "={{ $json.action }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d75b5c31-8a3b-467a-ad64-d77d20fa5d21",
+                    "leftValue": "co",
+                    "rightValue": "={{ $json.action }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ac8341c2-1525-4741-9d87-b4e4b2444ba2",
+                    "leftValue": "c",
+                    "rightValue": "={{ $json.action }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b612332d-33c3-4638-9c39-7894be8bd665",
+                    "leftValue": "o",
+                    "rightValue": "={{ $json.action }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        512,
+        352
+      ],
+      "id": "4afe4fd9-81fc-4505-a01a-5eb036cecc1d",
+      "name": "Action Type",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM",
+          "mode": "list",
+          "cachedResultName": "СтройУчёт — Расходы",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Expenses",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "expense_id",
+              "lookupValue": "={{ $('Parse Callback').first().json.expense_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        848,
+        16
+      ],
+      "id": "2300568d-3f48-41a5-bd96-f6248ba492c2",
+      "name": "Get Expense Row",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM",
+          "mode": "list",
+          "cachedResultName": "СтройУчёт — Расходы",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Expenses",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "expense_id": "={{ $('Parse Callback').first().json.expense_id }}",
+            "status": "confirmed"
+          },
+          "matchingColumns": [
+            "expense_id"
+          ],
+          "schema": [
+            {
+              "id": "expense_id",
+              "displayName": "expense_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "object_id",
+              "displayName": "object_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "object_name",
+              "displayName": "object_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "submitted_by",
+              "displayName": "submitted_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telegram_user_id",
+              "displayName": "telegram_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1056,
+        16
+      ],
+      "id": "ea13e295-e79c-4e29-a5ec-0ccd0f7d24fe",
+      "name": "Update Confirmed",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/answerCallbackQuery",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.answer_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1440,
+        16
+      ],
+      "id": "2b28fa1c-2ed8-4554-a4b8-15755fc4fd05",
+      "name": "Answer & Edit OK"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cb = $('Parse Callback').first().json;\nconst expense = $('Get Expense Row').first().json;\n\nconst catLabels = {\n  materials: '🧱 Материалы', fuel: '⛽ Топливо',\n  tools: '🔧 Инструмент', food: '🍽 Питание',\n  delivery: '🚚 Доставка', other: '📦 Прочее'\n};\n\nconst text = `✅ *Чек подтверждён*\\n\\n` +\n  `📅 ${expense.date}\\n` +\n  `💰 ${expense.amount} ₽\\n` +\n  `🏷 ${catLabels[expense.category] || expense.category}\\n` +\n  `🏗 ${expense.object_name || 'Не указан'}\\n` +\n  `📝 ${expense.description}`;\n\nconst edit_body = JSON.stringify({\n  chat_id: cb.chat_id,\n  message_id: cb.message_id,\n  text: text,\n  parse_mode: \"Markdown\"\n});\n\nconst answer_body = JSON.stringify({\n  callback_query_id: cb.callback_id,\n  text: \"✅ Подтверждено\"\n});\n\nreturn [{ json: { edit_body, answer_body, chat_id: cb.chat_id, expense_id: cb.expense_id, object_id: expense.object_id } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        16
+      ],
+      "id": "5d12ff8c-e774-4755-9baf-4219faccb65d",
+      "name": "Build OK Response"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/editMessageText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Build OK Response').first().json.edit_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1648,
+        16
+      ],
+      "id": "80318ab6-a4ba-4517-95ee-4c383b29341b",
+      "name": "Edit Message OK"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM",
+          "mode": "list",
+          "cachedResultName": "СтройУчёт — Расходы",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Expenses",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "expense_id": "={{ $('Parse Callback').first().json.expense_id }}",
+            "status": "deleted"
+          },
+          "matchingColumns": [
+            "expense_id"
+          ],
+          "schema": [
+            {
+              "id": "expense_id",
+              "displayName": "expense_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "object_id",
+              "displayName": "object_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "object_name",
+              "displayName": "object_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "submitted_by",
+              "displayName": "submitted_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telegram_user_id",
+              "displayName": "telegram_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        848,
+        208
+      ],
+      "id": "df985a8c-6123-497c-843b-207d43a624a6",
+      "name": "Update Deleted",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cb = $('Parse Callback').first().json;\n\nconst edit_body = JSON.stringify({\n  chat_id: cb.chat_id,\n  message_id: cb.message_id,\n  text: \"🗑 Чек удалён.\",\n  parse_mode: \"Markdown\"\n});\n\nconst answer_body = JSON.stringify({\n  callback_query_id: cb.callback_id,\n  text: \"🗑 Удалено\"\n});\n\nreturn [{ json: { edit_body, answer_body } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        208
+      ],
+      "id": "77cb06cb-73ee-4624-a7eb-c30078f95c30",
+      "name": "Build DEL Response"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/answerCallbackQuery",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.answer_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1264,
+        208
+      ],
+      "id": "476e8605-b58f-480f-b1ff-98e13903e1d2",
+      "name": "Answer Callback DEL"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/editMessageText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Build DEL Response').first().json.edit_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1440,
+        208
+      ],
+      "id": "78aa6ae2-0969-4380-9cb1-c7a214d09827",
+      "name": "Edit Message DEL"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cb = $('Parse Callback').first().json;\nconst eid = cb.expense_id;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '🧱 Материалы', callback_data: `c:${eid}:materials` },\n      { text: '⛽ Топливо', callback_data: `c:${eid}:fuel` }\n    ],\n    [\n      { text: '🔧 Инструмент', callback_data: `c:${eid}:tools` },\n      { text: '🍽 Питание', callback_data: `c:${eid}:food` }\n    ],\n    [\n      { text: '🚚 Доставка', callback_data: `c:${eid}:delivery` },\n      { text: '📦 Прочее', callback_data: `c:${eid}:other` }\n    ]\n  ]\n};\n\nconst edit_body = JSON.stringify({\n  chat_id: cb.chat_id,\n  message_id: cb.message_id,\n  text: \"Выберите категорию:\",\n  reply_markup: keyboard\n});\n\nconst answer_body = JSON.stringify({\n  callback_query_id: cb.callback_id\n});\n\nreturn [{ json: { edit_body, answer_body } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        384
+      ],
+      "id": "5ef41540-c0b7-4877-8470-4b9120deff8c",
+      "name": "Build Category Buttons"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/answerCallbackQuery",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.answer_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1056,
+        384
+      ],
+      "id": "ab8b1dfc-f123-442f-8647-a160d100a25f",
+      "name": "Answer Callback CC"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/editMessageText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Build Category Buttons').first().json.edit_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1248,
+        384
+      ],
+      "id": "edafd01f-2d39-41f3-9d5c-9e68a264a270",
+      "name": "Edit Message CC"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM",
+          "mode": "list",
+          "cachedResultName": "СтройУчёт — Расходы",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 10642848,
+          "mode": "list",
+          "cachedResultName": "Objects",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit#gid=10642848"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        848,
+        576
+      ],
+      "id": "ae9cb0f2-990f-407c-8bbe-6381af544496",
+      "name": "Get Objects CO",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cb = $('Parse Callback').first().json;\nconst eid = cb.expense_id;\nconst objects = $('Get Objects CO').all()\n  .map(i => i.json)\n  .filter(o => o.status === 'active');\n\n// Каждый объект — отдельная кнопка\nconst buttons = objects.map(obj => ([{\n  text: obj.object_name,\n  callback_data: `o:${eid}:${obj.object_id}`\n}]));\n\nconst keyboard = { inline_keyboard: buttons };\n\nconst edit_body = JSON.stringify({\n  chat_id: cb.chat_id,\n  message_id: cb.message_id,\n  text: \"Выберите объект:\",\n  reply_markup: keyboard\n});\n\nconst answer_body = JSON.stringify({\n  callback_query_id: cb.callback_id\n});\n\nreturn [{ json: { edit_body, answer_body } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        576
+      ],
+      "id": "10a3a09d-fb62-4207-9d08-7851a7524abf",
+      "name": "Build Object Buttons"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/answerCallbackQuery",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.answer_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1248,
+        576
+      ],
+      "id": "25caecde-7212-4582-a398-9740edb3994d",
+      "name": "Answer Callback CO"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/editMessageText",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Build Object Buttons').first().json.edit_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1440,
+        576
+      ],
+      "id": "2a291499-f8c9-44b9-8e74-b34a23143bf5",
+      "name": "Edit Message CO"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM",
+          "mode": "list",
+          "cachedResultName": "СтройУчёт — Расходы",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Expenses",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "expense_id": "={{ $('Parse Callback').first().json.expense_id }}",
+            "category": "={{ $('Parse Callback').first().json.value }}"
+          },
+          "matchingColumns": [
+            "expense_id"
+          ],
+          "schema": [
+            {
+              "id": "expense_id",
+              "displayName": "expense_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "object_id",
+              "displayName": "object_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "object_name",
+              "displayName": "object_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "submitted_by",
+              "displayName": "submitted_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telegram_user_id",
+              "displayName": "telegram_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        848,
+        784
+      ],
+      "id": "27febcb2-3ca0-4cf2-9687-d0c544f4e043",
+      "name": "Update Category",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cb = $('Parse Callback').first().json;\nconst eid = cb.expense_id;\n\nconst catLabels = {\n  materials: '🧱 Материалы', fuel: '⛽ Топливо',\n  tools: '🔧 Инструмент', food: '🍽 Питание',\n  delivery: '🚚 Доставка', other: '📦 Прочее'\n};\n\nconst keyboard = {\n  inline_keyboard: [\n    [{ text: '✅ Верно', callback_data: `ok:${eid}` }],\n    [\n      { text: '🏷 Категория', callback_data: `cc:${eid}` },\n      { text: '🏗 Объект', callback_data: `co:${eid}` }\n    ],\n    [{ text: '🗑 Удалить', callback_data: `del:${eid}` }]\n  ]\n};\n\nconst edit_body = JSON.stringify({\n  chat_id: cb.chat_id,\n  message_id: cb.message_id,\n  text: `✅ Категория изменена на: ${catLabels[cb.value] || cb.value}\\n\\nПодтвердите или измените:`,\n  parse_mode: \"Markdown\",\n  reply_markup: keyboard\n});\n\nconst answer_body = JSON.stringify({\n  callback_query_id: cb.callback_id,\n  text: \"Категория обновлена\"\n});\n\nreturn [{ json: { edit_body, answer_body } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        784
+      ],
+      "id": "70448e61-f30f-4185-ab4d-951dadfb609e",
+      "name": "Build C Response"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/answerCallbackQuery",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.answer_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1264,
+        784
+      ],
+      "id": "056531cc-0e64-4ef9-a998-ddce0099bbf6",
+      "name": "Answer Callback C"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/editMessageText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Build C Response').first().json.edit_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1472,
+        784
+      ],
+      "id": "8f95b25d-03c7-4684-832d-93b98bf57cdd",
+      "name": "Edit Message C"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM",
+          "mode": "list",
+          "cachedResultName": "СтройУчёт — Расходы",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 10642848,
+          "mode": "list",
+          "cachedResultName": "Objects",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit#gid=10642848"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        848,
+        976
+      ],
+      "id": "eba037ac-9a59-4e4c-9796-c8e8b7fa0460",
+      "name": "Get Object Name",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cb = $('Parse Callback').first().json;\nconst objects = $('Get Object Name').all().map(i => i.json);\nconst selected = objects.find(o => o.object_id === cb.value);\nconst objName = selected ? selected.object_name : cb.value;\n\nreturn [{ json: {\n  expense_id: cb.expense_id,\n  object_id: cb.value,\n  object_name: objName,\n  chat_id: cb.chat_id,\n  message_id: cb.message_id,\n  callback_id: cb.callback_id\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        976
+      ],
+      "id": "08323178-1cdb-4e8c-9dc0-5c082b0c46bd",
+      "name": "Build O Response"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM",
+          "mode": "list",
+          "cachedResultName": "СтройУчёт — Расходы",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Expenses",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "expense_id": "={{ $('Parse Callback').first().json.expense_id }}",
+            "object_id": "={{ $json.object_id }}",
+            "object_name": "={{ $json.object_name }}"
+          },
+          "matchingColumns": [
+            "expense_id"
+          ],
+          "schema": [
+            {
+              "id": "expense_id",
+              "displayName": "expense_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "object_id",
+              "displayName": "object_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "object_name",
+              "displayName": "object_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "submitted_by",
+              "displayName": "submitted_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telegram_user_id",
+              "displayName": "telegram_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1264,
+        976
+      ],
+      "id": "2563dda9-71b7-4cf6-9a84-d1693c28eb29",
+      "name": "Update Object",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Build O Response').first().json;\nconst eid = $('Parse Callback').first().json.expense_id;\n\nconst keyboard = {\n  inline_keyboard: [\n    [{ text: '✅ Верно', callback_data: `ok:${eid}` }],\n    [\n      { text: '🏷 Категория', callback_data: `cc:${eid}` },\n      { text: '🏗 Объект', callback_data: `co:${eid}` }\n    ],\n    [{ text: '🗑 Удалить', callback_data: `del:${eid}` }]\n  ]\n};\n\nconst edit_body = JSON.stringify({\n  chat_id: data.chat_id,\n  message_id: data.message_id,\n  text: `✅ Объект изменён на: ${data.object_name}\\n\\nПодтвердите или измените:`,\n  parse_mode: \"Markdown\",\n  reply_markup: keyboard\n});\n\nconst answer_body = JSON.stringify({\n  callback_query_id: data.callback_id,\n  text: \"Объект обновлён\"\n});\n\nreturn [{ json: { edit_body, answer_body } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        976
+      ],
+      "id": "3be15e9b-a0ee-4f28-8d76-0f4997f2bb18",
+      "name": "Build O Edit"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/answerCallbackQuery",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.answer_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1664,
+        976
+      ],
+      "id": "6b1704d8-aab0-42bc-ac84-89003e6771eb",
+      "name": "Answer Callback O"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/editMessageText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('Build O Edit').first().json.edit_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1840,
+        976
+      ],
+      "id": "3f92fcd5-7c1a-440f-9441-0577f922ed0c",
+      "name": "Edit Message O"
+    },
+    {
+      "parameters": {
+        "jsCode": "const expense = $('Get Expense Row').first().json;\nconst cb = $('Parse Callback').first().json;\n\n// Если объект не назначен — пропускаем\nif (!expense.object_id || expense.object_id === '') {\n  return [{ json: { over_budget: false } }];\n}\n\n// Сумма confirmed расходов по объекту\nconst allExpenses = $('Get Expenses for Budget').all().map(i => i.json);\nconst objectExpenses = allExpenses.filter(\n  e => e.object_id === expense.object_id && e.status === 'confirmed'\n);\nconst totalSpent = objectExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);\n\n// Бюджет объекта\nconst objects = $('Get Object Budget').all().map(i => i.json);\nconst obj = objects.find(o => o.object_id === expense.object_id);\nconst budget = obj ? Number(obj.budget || 0) : 0;\n\n// Процент\nconst pct = budget > 0 ? Math.round(totalSpent / budget * 100) : 0;\nconst overBudget = pct >= 80;\n\nconst alertText = overBudget\n  ? `⚠️ *Внимание!*\\n\\nПо объекту «${obj.object_name}» израсходовано *${pct}%* бюджета.\\n\\n💰 Потрачено: ${totalSpent} ₽ из ${budget} ₽`\n  : '';\n\nreturn [{\n  json: {\n    over_budget: overBudget,\n    pct,\n    total_spent: totalSpent,\n    budget,\n    alert_text: alertText,\n    chat_id: cb.chat_id\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2272,
+        16
+      ],
+      "id": "50dc6518-8492-4c9d-aecc-d97140785790",
+      "name": "Check Budget"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM",
+          "mode": "list",
+          "cachedResultName": "СтройУчёт — Расходы",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 10642848,
+          "mode": "list",
+          "cachedResultName": "Objects",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit#gid=10642848"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1856,
+        16
+      ],
+      "id": "19396d32-ab13-4ac9-b8e4-0fcef1dffa2d",
+      "name": "Get Object Budget",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "789caa24-0e68-47ae-adaa-b607429ec634",
+              "leftValue": "={{ $json.over_budget ? 'yes' : '' }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2480,
+        16
+      ],
+      "id": "b34abb39-5079-4ee5-a21e-2c18cfe5f055",
+      "name": "Budget Alert?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Check Budget').first().json;\n\nconst body = JSON.stringify({\n  chat_id: data.chat_id,\n  text: data.alert_text,\n  parse_mode: \"Markdown\"\n});\n\nreturn [{ json: { body } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2688,
+        -80
+      ],
+      "id": "9089804e-f0b1-4a53-ada3-161a50ce5c32",
+      "name": "Build Alert Body"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8749798641:AAEH03Jl5rFqaNhmMwH8oayxM2eDlrd54_w/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2896,
+        -80
+      ],
+      "id": "d2d9f171-27f5-41a0-ae4b-0845eb478313",
+      "name": "Send Budget Alert"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM",
+          "mode": "list",
+          "cachedResultName": "СтройУчёт — Расходы",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Expenses",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_yEvzqiQQdjs_iA3hr760qvfy4oUyIU0Eco_kLxIkpM/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2064,
+        16
+      ],
+      "id": "85a767a5-bc4a-4c9c-9983-a92473f159d0",
+      "name": "Get Expenses for Budget",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Route Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Type": {
+      "main": [
+        [
+          {
+            "node": "Get File Path",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse Callback",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Fallback Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get File Path": {
+      "main": [
+        [
+          {
+            "node": "Build Vision Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Vision Request": {
+      "main": [
+        [
+          {
+            "node": "Extract Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Receipt": {
+      "main": [
+        [
+          {
+            "node": "Parse Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Receipt": {
+      "main": [
+        [
+          {
+            "node": "Get Objects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Objects": {
+      "main": [
+        [
+          {
+            "node": "Build Keyboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Keyboard": {
+      "main": [
+        [
+          {
+            "node": "Save Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Pending": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Callback": {
+      "main": [
+        [
+          {
+            "node": "Action Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action Type": {
+      "main": [
+        [
+          {
+            "node": "Get Expense Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Deleted",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Category Buttons",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Objects CO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Category",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Object Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Expense Row": {
+      "main": [
+        [
+          {
+            "node": "Update Confirmed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Confirmed": {
+      "main": [
+        [
+          {
+            "node": "Build OK Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build OK Response": {
+      "main": [
+        [
+          {
+            "node": "Answer & Edit OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer & Edit OK": {
+      "main": [
+        [
+          {
+            "node": "Edit Message OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Deleted": {
+      "main": [
+        [
+          {
+            "node": "Build DEL Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build DEL Response": {
+      "main": [
+        [
+          {
+            "node": "Answer Callback DEL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Callback DEL": {
+      "main": [
+        [
+          {
+            "node": "Edit Message DEL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Category Buttons": {
+      "main": [
+        [
+          {
+            "node": "Answer Callback CC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Callback CC": {
+      "main": [
+        [
+          {
+            "node": "Edit Message CC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Objects CO": {
+      "main": [
+        [
+          {
+            "node": "Build Object Buttons",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Object Buttons": {
+      "main": [
+        [
+          {
+            "node": "Answer Callback CO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Callback CO": {
+      "main": [
+        [
+          {
+            "node": "Edit Message CO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Category": {
+      "main": [
+        [
+          {
+            "node": "Build C Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build C Response": {
+      "main": [
+        [
+          {
+            "node": "Answer Callback C",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Callback C": {
+      "main": [
+        [
+          {
+            "node": "Edit Message C",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Object Name": {
+      "main": [
+        [
+          {
+            "node": "Build O Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build O Response": {
+      "main": [
+        [
+          {
+            "node": "Update Object",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Object": {
+      "main": [
+        [
+          {
+            "node": "Build O Edit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build O Edit": {
+      "main": [
+        [
+          {
+            "node": "Answer Callback O",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Callback O": {
+      "main": [
+        [
+          {
+            "node": "Edit Message O",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Message OK": {
+      "main": [
+        [
+          {
+            "node": "Get Object Budget",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Object Budget": {
+      "main": [
+        [
+          {
+            "node": "Get Expenses for Budget",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Budget": {
+      "main": [
+        [
+          {
+            "node": "Budget Alert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Budget Alert?": {
+      "main": [
+        [
+          {
+            "node": "Build Alert Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Alert Body": {
+      "main": [
+        [
+          {
+            "node": "Send Budget Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Expenses for Budget": {
+      "main": [
+        [
+          {
+            "node": "Check Budget",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "13fdc51b-28e7-4a0a-98ca-f7f3a8e35e32",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7336350515be8065f9e6f16c44aebd7540c1ed731f4d604c5a4d9b68a55dfd93"
+  },
+  "nodeGroups": [],
+  "id": "KsFMbBKYMuYEuSOI",
+  "tags": []
+}

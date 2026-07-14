@@ -1,0 +1,414 @@
+{
+  "name": "05 — Vector Consult: Lead Qualifier",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/new-lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "ed0c2d7f-fce0-407f-a87e-c604828f834e",
+      "name": "Webhook",
+      "webhookId": "47c07999-8469-447b-a98f-0e4229e9a9dd"
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\n\nconst systemPrompt = `Ты — AI-ассистент отдела продаж B2B-компании.\n\nТвоя задача: проанализировать заявку потенциального клиента и классифицировать лида.\n\nКАТЕГОРИИ:\n- hot (горячий): готов к покупке, есть бюджет, срочная потребность, ЛПР\n- warm (тёплый): интерес есть, но нет срочности или бюджет не утверждён, возможно не ЛПР\n- cold (холодный): просто интересуется, нет конкретики, студент/фрилансер, спам\n\nКРИТЕРИИ ОЦЕНКИ:\n1. Должность — ЛПР (директор, руководитель, владелец) = выше приоритет\n2. Размер компании — чем больше, тем выше потенциал\n3. Бюджет — указан конкретный = горячий сигнал\n4. Срочность — «нужно вчера» vs «просто смотрим»\n5. Конкретика запроса — детальное ТЗ vs «расскажите что умеете»\n\nОтветь строго в JSON-формате:\n{\n    \"category\": \"hot\" | \"warm\" | \"cold\",\n    \"score\": 1-10,\n    \"reasoning\": \"Краткое обоснование на русском (2-3 предложения)\",\n    \"recommended_action\": \"Что делать менеджеру (1 предложение)\",\n    \"response_priority\": \"immediate\" | \"same_day\" | \"next_week\"\n}\n\nТолько JSON, без пояснений, без markdown-обёртки.`;\n\nconst userMessage = `ЗАЯВКА С САЙТА:\nИмя: ${lead.name || 'Не указано'}\nКомпания: ${lead.company || 'Не указано'}\nДолжность: ${lead.position || 'Не указано'}\nРазмер компании: ${lead.employees || 'Не указано'} сотрудников\nEmail: ${lead.email || 'Не указано'}\nТелефон: ${lead.phone || 'Не указано'}\nСообщение: ${lead.message || 'Пусто'}`;\n\nconst requestBody = JSON.stringify({\n  model: \"deepseek-chat\",\n  messages: [\n    { role: \"system\", content: systemPrompt },\n    { role: \"user\", content: userMessage }\n  ],\n  response_format: { type: \"json_object\" }\n});\n\nreturn [{\n  json: {\n    request_body: requestBody,\n    lead_name: lead.name || 'Не указано',\n    lead_company: lead.company || 'Не указано',\n    lead_position: lead.position || 'Не указано',\n    lead_employees: lead.employees || 'Не указано',\n    lead_email: lead.email || 'Не указано',\n    lead_phone: lead.phone || 'Не указано',\n    lead_message: lead.message || 'Пусто'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "7109f232-149c-4f60-ba15-850c9d9d4395",
+      "name": "Build Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "ebd417b6-beae-45a4-bf31-855e39b96a9f",
+      "name": "DeepSeek",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mP5T7DHPI4HKzCJm",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst prevData = $('Build Prompt').first().json;\n\n// Парсим ответ DeepSeek\nconst content = input.choices[0].message.content;\nconst result = JSON.parse(content);\n\n// Генерируем lead_id: VK-YYYYMMDD-NNN\nconst now = new Date();\nconst dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');\nconst rand = String(Math.floor(Math.random() * 900) + 100);\nconst leadId = `VK-${dateStr}-${rand}`;\n\nconst processedAt = now.toISOString().slice(0, 19);\n\n// Emoji для Telegram\nconst emoji = { hot: '🔥', warm: '🟡', cold: '🔵' };\nconst categoryEmoji = emoji[result.category] || '❓';\n\n// Telegram-сообщение (HTML)\nconst telegramMessage = `${categoryEmoji} <b>Новый лид: ${result.category.toUpperCase()}</b> (${result.score}/10)\\n\\nИмя: ${prevData.lead_name}\\nКомпания: ${prevData.lead_company}\\nДолжность: ${prevData.lead_position}\\nEmail: ${prevData.lead_email}\\n\\n<b>Обоснование:</b> ${result.reasoning}\\n\\n<b>Рекомендация:</b> ${result.recommended_action}`;\n\nreturn [{\n  json: {\n    // Для Sheets (порядок = порядок столбцов A–N)\n    lead_id: leadId,\n    name: prevData.lead_name,\n    company: prevData.lead_company,\n    position: prevData.lead_position,\n    employees: prevData.lead_employees,\n    email: prevData.lead_email,\n    phone: prevData.lead_phone ? \"'\" + prevData.lead_phone : '',\n    message: prevData.lead_message,\n    category: result.category,\n    score: result.score,\n    reasoning: result.reasoning,\n    recommended_action: result.recommended_action,\n    response_priority: result.response_priority,\n    processed_at: processedAt,\n    // Для Telegram и IF\n    telegram_message: telegramMessage\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "c0c79d29-b931-4c59-a235-a85442bd1e10",
+      "name": "Parse & Enrich"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1xoSdHOrOOGTfWerVSh7MIc9i45I8KgOsX6cDY2FNoMc",
+          "mode": "list",
+          "cachedResultName": "Vector Consult — Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1xoSdHOrOOGTfWerVSh7MIc9i45I8KgOsX6cDY2FNoMc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1xoSdHOrOOGTfWerVSh7MIc9i45I8KgOsX6cDY2FNoMc/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lead_id": "={{ $json.lead_id }}",
+            "name": "={{ $json.name }}",
+            "company": "={{ $json.company }}",
+            "position": "={{ $json.position }}",
+            "employees": "={{ $json.employees }}",
+            "email": "={{ $json.email }}",
+            "phone": "={{ $json.phone }}",
+            "message": "={{ $json.message }}",
+            "category": "={{ $json.category }}",
+            "score": "={{ $json.score }}",
+            "reasoning": "={{ $json.reasoning }}",
+            "recommended_action": "={{ $json.recommended_action }}",
+            "response_priority": "={{ $json.response_priority }}",
+            "processed_at": "={{ $json.processed_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "lead_id",
+              "displayName": "lead_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "position",
+              "displayName": "position",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "employees",
+              "displayName": "employees",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "score",
+              "displayName": "score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reasoning",
+              "displayName": "reasoning",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recommended_action",
+              "displayName": "recommended_action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "response_priority",
+              "displayName": "response_priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processed_at",
+              "displayName": "processed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        832,
+        0
+      ],
+      "id": "4a1d4c1a-6b09-4f6d-933a-b059c039a26e",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "66ffb61a-254f-48ee-9bfb-ff275eac49cc",
+              "leftValue": "={{ $json.category }}",
+              "rightValue": "cold",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "b44bddbd-f448-41d8-94e4-d7b796ecee5e",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "448587092",
+        "text": "={{ $('Parse & Enrich').first().json.telegram_message }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1248,
+        -96
+      ],
+      "id": "a3e65a9a-e8cf-4231-a6d2-9fa5008b0368",
+      "name": "Send a text message",
+      "webhookId": "2f4484d9-ef61-4c08-95e7-6c5f14720559",
+      "executeOnce": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "name": "Алексей Петров",
+          "company": "ООО СтройГрупп",
+          "position": "Генеральный директор",
+          "employees": "50-100",
+          "email": "petrov@stroygroup.ru",
+          "phone": "+7 (495) 123-45-67",
+          "message": "Нужна автоматизация обработки заявок с сайта. Менеджеры тратят 3 часа в день. Бюджет до 150 000₽, запуск в течение месяца."
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "DeepSeek",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek": {
+      "main": [
+        [
+          {
+            "node": "Parse & Enrich",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Enrich": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "91c7b658-b67a-404e-a4a4-f1efc5170e01",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7336350515be8065f9e6f16c44aebd7540c1ed731f4d604c5a4d9b68a55dfd93"
+  },
+  "nodeGroups": [],
+  "id": "tKoNFoZug1986Mh8",
+  "tags": []
+}

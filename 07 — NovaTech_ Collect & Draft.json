@@ -1,0 +1,516 @@
+{
+  "name": "07 — NovaTech: Collect & Draft",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "4fadc436-583e-4a2a-a953-27ccc03535ec",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://habr.com/ru/rss/flows/develop/all/?fl=ru",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        192,
+        -160
+      ],
+      "id": "4c7db6c6-25de-481c-ba23-00b43117dfca",
+      "name": "RSS Read"
+    },
+    {
+      "parameters": {
+        "url": "https://vc.ru/rss/all",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        192,
+        0
+      ],
+      "id": "1289a4a7-3053-4ee4-a80c-5e44cc8960a0",
+      "name": "RSS Read1"
+    },
+    {
+      "parameters": {
+        "url": "https://techcrunch.com/feed/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        192,
+        160
+      ],
+      "id": "87b6a7d3-585c-43fa-82bd-4585e0a700a9",
+      "name": "RSS Read2"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        464,
+        -80
+      ],
+      "id": "1c495f02-f683-496d-aa57-7d64a6c2a1e0",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Входы: Merge — RSS-статьи, Get Rows — existing drafts\nconst articles = $('Merge').all();\n\n// Получаем существующие source_title из Sheets\nlet existingTitles = new Set();\ntry {\n  const existingItems = $('Get Rows').all();\n  existingTitles = new Set(\n    existingItems\n      .map(row => (row.json.source_title || '').toLowerCase().trim())\n      .filter(t => t.length > 0)\n  );\n} catch (e) {\n  // Таблица пустая или нода не выполнилась — дубликатов нет\n  existingTitles = new Set();\n}\n\n// Фильтр 1: только за последние 24 часа\nconst now = new Date();\nconst cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);\n\nconst recent = articles.filter(item => {\n  const pub = new Date(item.json.pubDate || item.json.isoDate || item.json.date || 0);\n  return pub >= cutoff;\n});\n\n// Фильтр 2: убираем дубли по title\nconst deduped = recent.filter(item => {\n  const title = (item.json.title || '').toLowerCase().trim();\n  return !existingTitles.has(title);\n});\n\n// Фильтр 3: берём максимум 3 статьи\nconst selected = deduped.slice(0, 3);\n\nif (selected.length === 0) {\n  return [];\n}\n\nreturn selected.map(item => ({\n  json: {\n    source_title: item.json.title || '',\n    source_url: item.json.link || '',\n    source_content: (item.json.content || item.json.contentSnippet || item.json.description || '').substring(0, 2000),\n    source_date: item.json.pubDate || item.json.isoDate || ''\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        0
+      ],
+      "id": "a6c9eb9e-5509-451d-8032-fac7d71ca0bc",
+      "name": "Filter & Deduplicate"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1TMtuJbnBlCqVJZUp8sBEKQOvJIIBTsaB5z4zRaKu808",
+          "mode": "list",
+          "cachedResultName": "NovaTech — Content Drafts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1TMtuJbnBlCqVJZUp8sBEKQOvJIIBTsaB5z4zRaKu808/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1TMtuJbnBlCqVJZUp8sBEKQOvJIIBTsaB5z4zRaKu808/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        464,
+        128
+      ],
+      "id": "825b85df-9095-415d-94e7-c63923e73f5a",
+      "name": "Get Rows",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\n\nconst systemPrompt = `Ты — контент-менеджер digital-студии NovaTech Solutions.\nСтудия разрабатывает сайты и мобильные приложения для бизнеса.\nАудитория канала: владельцы малого и среднего бизнеса, маркетологи, предприниматели.\n\nЗадача: написать пост для Telegram-канала на основе новости ниже.\n\nПравила:\n1. Заголовок: 5–10 слов, эмодзи 🔷 в начале\n2. Суть новости: 2–3 предложения, простым языком без жаргона\n3. Экспертный комментарий от лица NovaTech: 2–3 предложения — что это значит для бизнеса клиентов студии, практический вывод\n4. 2–3 хештега в конце\n5. Общая длина: 600–900 символов\n6. Тон: профессиональный, но дружелюбный. Без канцеляризмов, без восклицательных знаков подряд, без «друзья!»\n7. Не начинай с «В мире технологий», «Сегодня стало известно» и подобных клише\n8. Пиши по-русски\n\nОтветь строго в JSON:\n{\n  \"title\": \"заголовок поста\",\n  \"body\": \"полный текст поста готовый к публикации\",\n  \"tags\": [\"тег1\", \"тег2\"],\n  \"source_comment\": \"одно предложение — почему эта новость важна для аудитории\"\n}`;\n\nconst userMessage = `Новость:\\nЗаголовок: ${item.source_title}\\n\\nТекст:\\n${item.source_content}\\n\\nИсточник: ${item.source_url}`;\n\nreturn {\n  json: {\n    ...item,\n    request_body: JSON.stringify({\n      model: \"deepseek-chat\",\n      messages: [\n        { role: \"system\", content: systemPrompt },\n        { role: \"user\", content: userMessage }\n      ],\n      response_format: { type: \"json_object\" },\n      temperature: 0.7\n    })\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        0
+      ],
+      "id": "249e0d0e-3a4a-4dfd-a864-c94d178aa1e2",
+      "name": "Build Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "d1c357f3-b21e-470a-b271-fae776baad4d",
+      "name": "DeepSeek",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mP5T7DHPI4HKzCJm",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst source = $('Build Prompt').item.json;\n\n// Парсим ответ DeepSeek\nconst content = item.choices[0].message.content;\nconst parsed = JSON.parse(content);\n\n// Генерируем draft_id\nconst now = new Date();\nconst dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');\nconst rand = String(Math.floor(Math.random() * 900) + 100);\nconst draftId = `NT-${dateStr}-${rand}`;\n\nconst createdAt = now.toISOString().slice(0, 19).replace('T', ' ');\n\n// Telegram preview для CEO\nconst preview = `📝 <b>Новый черновик</b>\\n\\n`\n  + `<b>${parsed.title}</b>\\n\\n`\n  + `${parsed.body}\\n\\n`\n  + `💡 <i>${parsed.source_comment}</i>\\n\\n`\n  + `🆔 ${draftId}`;\n\nreturn {\n  json: {\n    draft_id: draftId,\n    source_url: source.source_url,\n    source_title: source.source_title,\n    post_title: parsed.title,\n    post_body: parsed.body,\n    tags: parsed.tags.join(', '),\n    source_comment: parsed.source_comment,\n    status: 'draft',\n    created_at: createdAt,\n    published_at: '',\n    telegram_preview: preview\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        0
+      ],
+      "id": "5bef1a1c-f75c-455f-9f02-6bce50cc0da8",
+      "name": "Parse & Enrich"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1TMtuJbnBlCqVJZUp8sBEKQOvJIIBTsaB5z4zRaKu808",
+          "mode": "list",
+          "cachedResultName": "NovaTech — Content Drafts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1TMtuJbnBlCqVJZUp8sBEKQOvJIIBTsaB5z4zRaKu808/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Drafts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1TMtuJbnBlCqVJZUp8sBEKQOvJIIBTsaB5z4zRaKu808/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "draft_id": "={{ $json.draft_id }}",
+            "source_url": "={{ $json.source_url }}",
+            "source_title": "={{ $json.source_title }}",
+            "post_title": "={{ $json.post_title }}",
+            "post_body": "={{ $json.post_body }}",
+            "tags": "={{ $json.tags }}",
+            "source_comment": "={{ $json.source_comment }}",
+            "status": "={{ $json.status }}",
+            "created_at": "={{ $json.created_at }}",
+            "published_at": "={{ $json.published_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "draft_id",
+              "displayName": "draft_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_url",
+              "displayName": "source_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_title",
+              "displayName": "source_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "post_title",
+              "displayName": "post_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "post_body",
+              "displayName": "post_body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tags",
+              "displayName": "tags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_comment",
+              "displayName": "source_comment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "published_at",
+              "displayName": "published_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1536,
+        0
+      ],
+      "id": "3de8fc3e-04ae-42d0-8846-094f522833c9",
+      "name": "Append Row",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "448587092",
+        "text": "={{ $('Parse & Enrich').item.json.telegram_preview }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "✅ Опубликовать",
+                    "additionalFields": {
+                      "callback_data": "=approve:{{ $json.draft_id }}"
+                    }
+                  },
+                  {
+                    "text": "❌ Отклонить",
+                    "additionalFields": {
+                      "callback_data": "=reject:{{ $json.draft_id }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1744,
+        0
+      ],
+      "id": "69d1407a-9aaf-447c-84f7-b3a84244f86a",
+      "name": "Send a text message",
+      "webhookId": "ff4c06ac-e63b-4e1f-a8da-09c3a8a9ec16",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "RSS Read",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Read1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Read2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "RSS Read": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Filter & Deduplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Rows": {
+      "main": [
+        [
+          {
+            "node": "Filter & Deduplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter & Deduplicate": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "DeepSeek",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek": {
+      "main": [
+        [
+          {
+            "node": "Parse & Enrich",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Enrich": {
+      "main": [
+        [
+          {
+            "node": "Append Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Row": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "710712ee-c15f-4fe1-9da1-c6ac341c3294",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7336350515be8065f9e6f16c44aebd7540c1ed731f4d604c5a4d9b68a55dfd93"
+  },
+  "nodeGroups": [],
+  "id": "nwVyfXW6mVwlPYjO",
+  "tags": []
+}

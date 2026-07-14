@@ -1,0 +1,178 @@
+{
+  "name": "02 — Barbershop Loft Reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "6e2b38ec-ff5a-4fcd-9216-0e05df8ba707",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "522b9f0ea3143f1a9e013558afdeba544640795127874141cabf9e5b5f32de62@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "Barbershop Loft"
+        },
+        "timeMin": "={{ DateTime.now().plus({minutes: 105}).toISO() }}",
+        "timeMax": "={{ DateTime.now().plus({minutes: 135}).toISO() }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "d7ab262b-0c33-4beb-b24d-939763598df5",
+      "name": "Get many events",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "4PsduHe1jT7bdJ2k",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n  const desc = item.json.description || '';\n  \n  // Уже отправляли напоминание — пропускаем\n  if (desc.includes('reminded:true')) continue;\n  \n  // Парсим chat_id\n  const match = desc.match(/chat_id:\\s*(\\d+)/);\n  if (!match) continue;\n  \n  results.push({\n    json: {\n      eventId: item.json.id,\n      calendarId: item.json.calendarId || 'primary',\n      chatId: match[1],\n      summary: item.json.summary || '',\n      start: item.json.start?.dateTime || '',\n      description: desc\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "0a56cbd9-3cbc-4bac-8b9a-38f7138c69d4",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "💈 Напоминаем: через 2 часа вас ждут в Barbershop Loft!\nАдрес: ул. Ленина 15, второй этаж.\nДо встречи!",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "a9d23c9e-cc8f-443c-9ea0-0a3e0dacdaae",
+      "name": "Send a text message",
+      "webhookId": "224375e2-af58-4ec0-9c5b-375ad898e067",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "522b9f0ea3143f1a9e013558afdeba544640795127874141cabf9e5b5f32de62@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "Barbershop Loft"
+        },
+        "eventId": "={{ $('Code in JavaScript').item.json.eventId }}",
+        "updateFields": {
+          "description": "={{ $('Code in JavaScript').item.json.description + '\\nreminded:true' }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        832,
+        0
+      ],
+      "id": "84c4e3a2-b0ea-4a91-bf3b-69853ce0758c",
+      "name": "Update an event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "4PsduHe1jT7bdJ2k",
+          "name": "Google Calendar account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "Update an event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "b1b0efcc-00d1-4c80-95eb-f557765c86c8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7336350515be8065f9e6f16c44aebd7540c1ed731f4d604c5a4d9b68a55dfd93"
+  },
+  "nodeGroups": [],
+  "id": "RL32Mv3yPpJv20f3",
+  "tags": []
+}

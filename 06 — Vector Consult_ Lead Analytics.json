@@ -1,0 +1,149 @@
+{
+  "name": "06 — Vector Consult: Lead Analytics",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "244e0409-38f1-42fd-a1b6-b991d5cab064",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1xoSdHOrOOGTfWerVSh7MIc9i45I8KgOsX6cDY2FNoMc",
+          "mode": "list",
+          "cachedResultName": "Vector Consult — Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1xoSdHOrOOGTfWerVSh7MIc9i45I8KgOsX6cDY2FNoMc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1xoSdHOrOOGTfWerVSh7MIc9i45I8KgOsX6cDY2FNoMc/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        0
+      ],
+      "id": "c47303f4-d393-46f9-ac0b-9d7c44325be7",
+      "name": "Get row(s) in sheet",
+      "retryOnFail": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(item => item.json);\n\n// Определяем период — последние 7 дней\nconst now = new Date();\nconst weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\n\nconst formatDate = (d) => {\n  const dd = String(d.getDate()).padStart(2, '0');\n  const mm = String(d.getMonth() + 1).padStart(2, '0');\n  const yy = String(d.getFullYear()).slice(2);\n  return `${dd}.${mm}.${yy}`;\n};\n\n// Фильтруем за неделю\nconst recent = rows.filter(r => {\n  if (!r.processed_at) return false;\n  const d = new Date(r.processed_at);\n  return d >= weekAgo && d <= now;\n});\n\nconst total = recent.length;\n\nif (total === 0) {\n  return [{\n    json: {\n      telegram_message: '📊 <b>Отчёт по лидам за неделю</b>\\n(' + formatDate(weekAgo) + ' — ' + formatDate(now) + ')\\n\\nНовых заявок не было.'\n    }\n  }];\n}\n\n// Считаем по категориям\nconst hot = recent.filter(r => r.category === 'hot').length;\nconst warm = recent.filter(r => r.category === 'warm').length;\nconst cold = recent.filter(r => r.category === 'cold').length;\n\n// Средний score\nconst scores = recent.map(r => Number(r.score)).filter(s => !isNaN(s));\nconst avgScore = scores.length > 0\n  ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)\n  : '—';\n\n// Требуют немедленного ответа\nconst immediate = recent.filter(r => r.response_priority === 'immediate').length;\n\n// Проценты\nconst pct = (n) => total > 0 ? Math.round(n / total * 100) : 0;\n\nconst message = `📊 <b>Отчёт по лидам за неделю</b>\n(${formatDate(weekAgo)} — ${formatDate(now)})\n\nВсего заявок: <b>${total}</b>\n🔥 Горячих: ${hot} (${pct(hot)}%)\n🟡 Тёплых: ${warm} (${pct(warm)}%)\n🔵 Холодных: ${cold} (${pct(cold)}%)\n\nСредний score: <b>${avgScore}/10</b>\nТребуют немедленного ответа: <b>${immediate}</b>`;\n\nreturn [{\n  json: {\n    telegram_message: message\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "f6af61a0-396e-4214-b524-491dc97b5e04",
+      "name": "Aggregate Stats"
+    },
+    {
+      "parameters": {
+        "chatId": "448587092",
+        "text": "={{ $json.telegram_message }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "c306f0f2-f0fd-461f-b102-891faa0248b0",
+      "name": "Send a text message",
+      "webhookId": "c0748f52-6968-48c4-aa30-a60c29212830",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Stats": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "9be4e248-bdb4-4fd1-b8fc-df10687049ee",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7336350515be8065f9e6f16c44aebd7540c1ed731f4d604c5a4d9b68a55dfd93"
+  },
+  "nodeGroups": [],
+  "id": "fReaXXXKLsjj2Ync",
+  "tags": []
+}

@@ -1,0 +1,551 @@
+{
+  "name": "02 — Urban Thread: New Order",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/new-order",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "050be7fa-92af-4573-9c95-61175a8e7443",
+      "name": "Webhook",
+      "webhookId": "a5fb0f5b-d292-4aa0-b4e1-46fd14893ee6"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q",
+          "mode": "list",
+          "cachedResultName": "Urban Thread",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Orders",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "order_id": "={{ $json.order_id }}",
+            "chat_id": "={{ $json.chat_id }}",
+            "client_name": "={{ $json.client_name }}",
+            "items": "={{ $json.items_text }}",
+            "total": "={{ $json.total }}",
+            "status": "={{ $json.status }}",
+            "tracking": "={{ $json.tracking }}",
+            "created_at": "={{ $json.created_at }}",
+            "updated_at": "={{ $json.updated_at }}",
+            "address": "={{ $json.address }}",
+            "notes": "={{ $json.notes }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "order_id",
+              "displayName": "order_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "items",
+              "displayName": "items",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "total",
+              "displayName": "total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tracking",
+              "displayName": "tracking",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "address",
+              "displayName": "address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        416,
+        0
+      ],
+      "id": "8a371509-5729-4470-a79a-a01297567dff",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q",
+          "mode": "list",
+          "cachedResultName": "Urban Thread",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 877820967,
+          "mode": "list",
+          "cachedResultName": "Inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q/edit#gid=877820967"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        0
+      ],
+      "id": "5871541b-f35c-4522-b553-c62680fb785d",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const orderItems = $('Generate Order').first().json.items_raw;\nconst inventoryRows = $input.all().map(item => item.json);\n\n// Какие SKU и сколько списать\nconst toDeduct = {};\nfor (const item of orderItems) {\n  const fullSku = `${item.sku}-${item.size}`;\n  toDeduct[fullSku] = (toDeduct[fullSku] || 0) + item.qty;\n}\n\n// Находим совпавшие строки, уменьшаем stock\nconst updatedRows = [];\nfor (const row of inventoryRows) {\n  if (toDeduct[row.sku]) {\n    updatedRows.push({\n      json: {\n        ...row,\n        stock: Math.max(0, Number(row.stock) - toDeduct[row.sku])\n      }\n    });\n  }\n}\n\nif (updatedRows.length === 0) {\n  return [{ json: { _skip: true } }];\n}\n\nreturn updatedRows;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        0
+      ],
+      "id": "127a499d-2279-4956-809a-aa191db9bf90",
+      "name": "Update Stock"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nconst input = {\n  ...raw,\n  items: typeof raw.items === 'string' ? JSON.parse(raw.items) : raw.items\n};\n\n// Каталог цен (6 SKU, зашиты в код — нет смысла тянуть из таблицы)\nconst catalog = {\n  \"UT-001\": { name: \"Футболка Oversize Basic\", price: 2490 },\n  \"UT-002\": { name: \"Худи Urban Classic\", price: 4990 },\n  \"UT-003\": { name: \"Джоггеры Street Fit\", price: 3790 },\n  \"UT-004\": { name: \"Лонгслив Minimal\", price: 2990 },\n  \"UT-005\": { name: \"Шорты Cargo Relaxed\", price: 2990 },\n  \"UT-006\": { name: \"Бомбер City Layer\", price: 6990 }\n};\n\n// Генерация order_id: UT-YYYYMMDD-NNN\nconst now = new Date();\nconst yyyy = now.getFullYear();\nconst mm = String(now.getMonth() + 1).padStart(2, '0');\nconst dd = String(now.getDate()).padStart(2, '0');\nconst nnn = String(Math.floor(Math.random() * 900) + 100);\nconst order_id = `UT-${yyyy}${mm}${dd}-${nnn}`;\n\n// Подсчёт total и формирование строки items\nlet total = 0;\nconst itemParts = [];\n\nfor (const item of input.items) {\n  const product = catalog[item.sku];\n  if (!product) continue; // неизвестный SKU — пропускаем\n  const subtotal = product.price * item.qty;\n  total += subtotal;\n  itemParts.push(`${item.sku} (${item.size}) × ${item.qty}`);\n}\n\nconst today = `${yyyy}-${mm}-${dd}`;\n\nreturn [{\n  json: {\n    order_id,\n    chat_id: input.chat_id,\n    client_name: input.client_name,\n    items_text: itemParts.join(', '),\n    items_raw: input.items,       // сохраняем массив для обновления Inventory\n    total,\n    status: 'processing',\n    tracking: '',\n    created_at: today,\n    updated_at: today,\n    address: input.address,\n    payment_method: input.payment_method,\n    notes: ''\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "ef121399-303a-40a6-ac61-262ef4cba677",
+      "name": "Generate Order"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0b77abb7-a5b1-477e-8282-df6349cee0ce",
+              "leftValue": "={{ $json._skip }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "d43bf372-b179-482e-992f-9d6a785af377",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q",
+          "mode": "list",
+          "cachedResultName": "Urban Thread",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 877820967,
+          "mode": "list",
+          "cachedResultName": "Inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V-tUJeRBLA69xOZ7_KRrcLTbHZzEGzpJ6vygCPqHQ3Q/edit#gid=877820967"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "sku": "={{ $json.sku }}",
+            "name": "={{ $json.name }}",
+            "stock": "={{ $json.stock }}",
+            "low_threshold": "={{ $json.low_threshold }}"
+          },
+          "matchingColumns": [
+            "sku"
+          ],
+          "schema": [
+            {
+              "id": "sku",
+              "displayName": "sku",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stock",
+              "displayName": "stock",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "low_threshold",
+              "displayName": "low_threshold",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1248,
+        -96
+      ],
+      "id": "1ab1e90b-3885-40a3-b1bd-051c84385e92",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "448587092",
+        "text": "=📦 <b>Новый заказ {{ $('Generate Order').first().json.order_id }}</b>\n\nКлиент: {{ $('Generate Order').first().json.client_name }}\nСостав: {{ $('Generate Order').first().json.items_text }}\nСумма: {{ $('Generate Order').first().json.total }} ₽\nАдрес: {{ $('Generate Order').first().json.address }}\nОплата: {{ $('Generate Order').first().json.payment_method }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1456,
+        -16
+      ],
+      "id": "fdf35caf-01ea-4f22-8778-00c4a0377b64",
+      "name": "Notify Manager",
+      "webhookId": "0a99f69c-c6e8-4f90-a305-eec0dfff610e",
+      "executeOnce": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Generate Order').first().json.chat_id }}",
+        "text": "=✅ <b>Заказ {{ $('Generate Order').first().json.order_id }} оформлен!</b>\n\n{{ $('Generate Order').first().json.items_text }}\nСумма: {{ $('Generate Order').first().json.total }} ₽\nДоставка: СДЭК, 2–5 рабочих дней\n\nНапиши сюда, если будут вопросы по заказу.",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1664,
+        -16
+      ],
+      "id": "7fe394a1-0202-4d30-8112-2c47fd0189d2",
+      "name": "Notify Client",
+      "webhookId": "51f8102d-de0c-46d4-a98c-d6d8d530ed80",
+      "executeOnce": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "client_name": "Алексей",
+          "chat_id": 448587092,
+          "items": [
+            {
+              "sku": "UT-001",
+              "size": "M",
+              "qty": 2
+            },
+            {
+              "sku": "UT-003",
+              "size": "L",
+              "qty": 1
+            }
+          ],
+          "address": "Москва, ул. Ленина 10, кв. 5",
+          "payment_method": "card"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Generate Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Update Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Order": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Stock": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Notify Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Manager": {
+      "main": [
+        [
+          {
+            "node": "Notify Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "964d1680-76bc-4113-a84d-d201568ea6ed",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7336350515be8065f9e6f16c44aebd7540c1ed731f4d604c5a4d9b68a55dfd93"
+  },
+  "nodeGroups": [],
+  "id": "NdGFC3byTkQz4c3g",
+  "tags": []
+}

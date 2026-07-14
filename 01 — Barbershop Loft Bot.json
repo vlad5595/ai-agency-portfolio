@@ -1,0 +1,437 @@
+{
+  "name": "01 — Barbershop Loft Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -128,
+        144
+      ],
+      "id": "01f431ee-71a9-427f-96e1-71b54f3e0512",
+      "name": "Telegram Trigger",
+      "webhookId": "12dfb847-31c6-412f-9025-0db054393ea0",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"deepseek-chat\",\n  \"messages\": {{ JSON.stringify([{role: \"system\", content: \"Ты AI-администратор мужского барбершопа Barbershop Loft. Адрес: Ленина 15, второй этаж.\\n\\nСЕГОДНЯ: \" + $now.setZone('Europe/Moscow').toFormat(\"cccc, d MMMM yyyy, HH:mm\")\n + \".\\n\\nМАСТЕРА:\\n— Артём — топ-мастер, 5 лет опыта. Работает Пн, Ср, Пт, Сб.\\n— Максим — средний уровень, 3 года. Работает Вт, Чт, Сб, Вс.\\n— Егор — младший, 1.5 года. Работает каждый день, кроме Пн.\\n\\nУСЛУГИ — ПОЛНЫЙ СПИСОК (показывай ВСЕ 6 позиций, никогда не сокращай):\\n1. Мужская стрижка (машинка + ножницы) — 1800₽, 45 мин\\n2. Стрижка + мытьё + укладка — 2200₽, 60 мин\\n3. Оформление бороды (опасная бритва) — 1500₽, 30 мин\\n4. Стрижка + борода (комбо) — 2800₽, 75 мин (экономия 500₽)\\n5. Королевское бритьё (полный уход) — 2500₽, 60 мин\\n6. Детская стрижка (до 12 лет) — 1500₽, 40 мин\\n\\nЦены одинаковые у всех мастеров.\\n\\nЧАСЫ РАБОТЫ: Пн-Пт 10:00-22:00, Сб-Вс 10:00-20:00. Без выходных.\\n\\nСТИЛЬ:\\n— Кратко, по-мужски. На «ты» после приветствия.\\n— Один эмодзи 💈 в финальной реплике, не в каждом сообщении.\\n\\nПРАВИЛА:\\n1. Вопрос об услугах или ценах — показывай ВСЕ 6 позиций, без сокращений.\\n2. Не переспрашивай — сразу давай варианты. Плохо: «На какое время?». Хорошо: «Есть 19:00 (Егор) и 20:30 (Артём). Что ближе?».\\n3. Цену называй ДО того как клиент спросит — встраивай в подтверждение.\\n4. Имя клиента спрашивай ПОСЛЕ выбора времени/услуги, перед финализацией.\\n5. НЕ ВЫДУМЫВАЙ слоты и мастеров. Если не знаешь свободное время — предлагай другой день.\\n6. Формула отказа: «Нельзя X. Есть Y или Z».\\n\\nФОРМАТ ФИНАЛИЗАЦИИ ЗАПИСИ:\\n«Записал. [день], [дата], [время], [мастер], [услуга], [цена]₽. Адрес: Ленина 15, второй этаж. За 2 часа пришлю напоминалку. До встречи 💈»\"}].concat($json.messages)) }}\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        528,
+        144
+      ],
+      "id": "26af7b8f-f9a7-4a9f-a48d-bf0da44409b7",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mP5T7DHPI4HKzCJm",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $('HTTP Request').item.json.choices[0].message.content }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        768,
+        -64
+      ],
+      "id": "1a1287a3-2821-47f9-a2a6-0278224edb8c",
+      "name": "Send a text message",
+      "webhookId": "bb8d3fb0-ea3c-4af0-b851-a11442c174d4",
+      "credentials": {
+        "telegramApi": {
+          "id": "498weDOr2NF4eLn9",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PHunn9FlkhJwX3CCQ9PXmM_Qpx0VaCS8MChPP2unKjc",
+          "mode": "list",
+          "cachedResultName": "Barbershop Loft — Chat Memory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PHunn9FlkhJwX3CCQ9PXmM_Qpx0VaCS8MChPP2unKjc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PHunn9FlkhJwX3CCQ9PXmM_Qpx0VaCS8MChPP2unKjc/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "chat_id",
+              "lookupValue": "={{ $('Telegram Trigger').item.json.message.chat.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        80,
+        144
+      ],
+      "id": "9c839332-9151-4873-9b4f-952f0efb9a24",
+      "name": "Get row(s) in sheet",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const history = $input.all().map(item => ({\n  role: item.json.role,\n  content: String(item.json.content)\n})).filter(m => m.role && m.content);\n\nconst recentHistory = history.slice(-10);\nconst newUserMessage = $('Telegram Trigger').item.json.message.text;\nconst chatId = $('Telegram Trigger').item.json.message.chat.id;\n\nconst messages = [\n  ...recentHistory,\n  {\n    role: \"user\",\n    content: newUserMessage\n  }\n];\n\nreturn [{\n  json: {\n    messages: messages,\n    chatId: chatId,\n    newUserMessage: newUserMessage\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        288,
+        144
+      ],
+      "id": "ebd7703d-6f8b-40d3-9b8b-3c60de703ff1",
+      "name": "Prepare messages"
+    },
+    {
+      "parameters": {
+        "jsCode": "const chatId = $('Prepare messages').item.json.chatId;\nconst userMessage = $('Prepare messages').item.json.newUserMessage;\nconst assistantMessage = $input.first().json.choices[0].message.content;\nconst timestamp = new Date().toISOString();\n\nreturn [\n  {\n    json: {\n      chat_id: chatId,\n      role: \"user\",\n      content: userMessage,\n      timestamp: timestamp\n    }\n  },\n  {\n    json: {\n      chat_id: chatId,\n      role: \"assistant\",\n      content: assistantMessage,\n      timestamp: timestamp\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        144
+      ],
+      "id": "be4fe70d-5ffd-4ef0-b74c-59e15edab39f",
+      "name": "Prepare rows for save"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1PHunn9FlkhJwX3CCQ9PXmM_Qpx0VaCS8MChPP2unKjc",
+          "mode": "list",
+          "cachedResultName": "Barbershop Loft — Chat Memory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PHunn9FlkhJwX3CCQ9PXmM_Qpx0VaCS8MChPP2unKjc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PHunn9FlkhJwX3CCQ9PXmM_Qpx0VaCS8MChPP2unKjc/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $json.chat_id }}",
+            "role": "={{ $json.role }}",
+            "content": "={{ $json.content }}",
+            "timestamp": "={{ $json.timestamp }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "content",
+              "displayName": "content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        976,
+        144
+      ],
+      "id": "31f01b48-430c-4b4d-8859-caa4454035db",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ImN9PErRjIgroMCM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"deepseek-chat\",\n  \"response_format\": { \"type\": \"json_object\" },\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Ты анализатор намерений для чат-бота парикмахерской. На вход получаешь последнее сообщение клиента и историю диалога. Верни СТРОГО JSON без пояснений.\\n\\nФормат:\\n{\\n  \\\"intent\\\": \\\"book\\\" | \\\"other\\\",\\n  \\\"master\\\": \\\"Артём\\\" | \\\"Максим\\\" | \\\"Егор\\\" | null,\\n  \\\"date\\\": \\\"YYYY-MM-DD\\\" | null,\\n  \\\"time\\\": \\\"HH:MM\\\" | null,\\n  \\\"service\\\": строка | null,\\n  \\\"client_name\\\": строка | null\\n}\\n\\nПРАВИЛА:\\n- intent = \\\"book\\\" ТОЛЬКО если одновременно НЕ null все четыре: master, date, time И client_name\\n- Если хотя бы одно из master/date/time/client_name = null — intent = \\\"other\\\" без исключений\\n- Если клиент ещё не назвал своё имя — intent = \\\"other\\\", даже если мастер, дата и время уже выбраны\\n- \\\"хочу записаться\\\", \\\"запишите меня\\\" без даты и времени = intent \\\"other\\\"\\n- \\\"да\\\", \\\"подходит\\\", \\\"давай\\\" = intent \\\"book\\\" только если из истории диалога можно извлечь master, date, time И client_name. Если чего-то нет — intent \\\"other\\\"\\n- Дату ВСЕГДА возвращай строго в формате YYYY-MM-DD (год-месяц-день). Например: 2026-07-09. НИКОГДА не используй DD-MM-YYYY или любой другой порядок. Сначала год, потом месяц, потом день.\\n- Дату вычисляй относительно СЕГОДНЯ: {{ $now.setZone('Europe/Moscow').toISODate() }}. \\\"завтра\\\" = +1 день, день недели = ближайший такой день в будущем\\n- client_name извлекай из любого сообщения, где клиент представился (например «Андрей», «меня зовут Влад», «это Сергей»)\\n- Всё что не бронирование = intent \\\"other\\\"\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify(\"История диалога:\\n\" + JSON.stringify($('Prepare messages').item.json.messages) + \"\\n\\nПоследнее сообщение клиента: \" + $('Prepare messages').item.json.newUserMessage) }}\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        736,
+        384
+      ],
+      "id": "917d5bec-0d66-4ef1-8a50-d4b6b7fd6695",
+      "name": "Analyze intent",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mP5T7DHPI4HKzCJm",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ JSON.parse($json.choices[0].message.content).intent }}",
+                    "rightValue": "book",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "6d542776-556b-4406-ad4a-0b1a6b07e349"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        944,
+        384
+      ],
+      "id": "84e16659-8c56-4457-a349-40b1810fcbae",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "522b9f0ea3143f1a9e013558afdeba544640795127874141cabf9e5b5f32de62@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "Barbershop Loft"
+        },
+        "start": "={{ DateTime.fromFormat(JSON.parse($json.choices[0].message.content).date, 'dd-MM-yyyy').isValid ? DateTime.fromFormat(JSON.parse($json.choices[0].message.content).date, 'dd-MM-yyyy').toISODate() : JSON.parse($json.choices[0].message.content).date }}T{{ JSON.parse($json.choices[0].message.content).time }}:00+03:00",
+        "end": "={{ DateTime.fromISO((DateTime.fromFormat(JSON.parse($json.choices[0].message.content).date, 'dd-MM-yyyy').isValid ? DateTime.fromFormat(JSON.parse($json.choices[0].message.content).date, 'dd-MM-yyyy').toISODate() : JSON.parse($json.choices[0].message.content).date) + 'T' + JSON.parse($json.choices[0].message.content).time + ':00+03:00').plus({hours: 1}).toISO() }}",
+        "additionalFields": {
+          "description": "=Клиент: {{ JSON.parse($json.choices[0].message.content).client_name }}\nchat_id: {{ $('Telegram Trigger').item.json.message.chat.id }}",
+          "summary": "={{ JSON.parse($json.choices[0].message.content).master }} — {{ JSON.parse($json.choices[0].message.content).service }} — {{ JSON.parse($json.choices[0].message.content).client_name }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1232,
+        368
+      ],
+      "id": "65f99926-d153-4a53-9686-2b068e6a22e2",
+      "name": "Create an event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "4PsduHe1jT7bdJ2k",
+          "name": "Google Calendar account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare rows for save",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Analyze intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Prepare messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare messages": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare rows for save": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        []
+      ]
+    },
+    "Analyze intent": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Create an event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "Europe/Moscow",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "6254a9c8-35bb-4539-8529-7be4d6965485",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7336350515be8065f9e6f16c44aebd7540c1ed731f4d604c5a4d9b68a55dfd93"
+  },
+  "nodeGroups": [],
+  "id": "OjsKgctjIW1msTfU",
+  "tags": []
+}
